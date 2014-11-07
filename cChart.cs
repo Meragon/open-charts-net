@@ -23,38 +23,42 @@ namespace OpenCharts
             _pointTooltip.Popup += _pointTooltip_Popup;
         }
 
-        private void _pointTooltip_Popup(object sender, PopupEventArgs e)
+        #region Properties
+
+        private int _borderWidth = 0;
+        [Category("OpenCharts")]
+        public int BorderWidth
         {
-            e.ToolTipSize = new Size((int)_pointTooltipInfo.Width, (int)_pointTooltipInfo.Height);
+            get { return _borderWidth; }
+            set { _borderWidth = value; }
         }
-        private void _pointTooltip_Draw(object sender, DrawToolTipEventArgs e)
+
+        private Color _borderColor = Color.FromArgb(0x45, 0x72, 0xA7);
+        [Category("OpenCharts")]
+        public Color BorderColor
         {
-            Graphics gr = e.Graphics;
-            gr.Clear(Color.White);
+            get { return _borderColor; }
+            set { _borderColor = value; }
+        }
 
-            float width = _pointTooltipInfo.Width;
-            float height = _pointTooltipInfo.Height;
+        private int _plotBorderWidth = 0;
+        [Category("OpenCharts")]
+        public int PlotBorderWidth
+        {
+            get { return _plotBorderWidth; }
+            set { _plotBorderWidth = value; }
+        }
 
-            // Shadow.
-            // g.FillRectangle(new SolidBrush(Color.FromArgb(50, 0, 0, 0)), 2, height, width - 2, 2);
-            //g.FillRectangle(new SolidBrush(Color.FromArgb(50, 0, 0, 0)), width, 2, 2, height);
-            gr.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.Default;
-            //g.FillRectangle(new SolidBrush(Color.FromArgb(150, 255, 255, 255)), 0, 0, width - 1, height - 1);
-
-            int r = _pointTooltipInfo.Color.R - 50; r = r < 0 ? 0 : r;
-            int g = _pointTooltipInfo.Color.G - 50; g = g < 0 ? 0 : g;
-            int b = _pointTooltipInfo.Color.B - 50; b = b < 0 ? 0 : b;
-
-            _pointTooltipInfo.Color = Color.FromArgb(r, g, b);
-            gr.DrawRectangle(new Pen(_pointTooltipInfo.Color), 0, 0, width - 1, height - 1);
-            gr.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            gr.FillEllipse(new SolidBrush(_pointTooltipInfo.Color), 4, 19, 8, 8);
-            gr.DrawString(xAxis.Categories[_pointTooltipInfo.CatIndex], xAxis.CategoriesFont, new SolidBrush(xAxis.CategoriesColor), new PointF(6, 0));
-            gr.DrawString(_pointTooltipInfo.Value, xAxis.CategoriesFont, new SolidBrush(xAxis.CategoriesColor), new PointF(16, 16));
+        private Color _plotBorderColor = Color.FromArgb(0xC0, 0xC0, 0xC0);
+        [Category("OpenCharts")]
+        public Color PlotBorderColor
+        {
+            get { return _plotBorderColor; }
+            set { _plotBorderColor = value; }
         }
 
         private cxAxis _xAxis = new cxAxis();
-        [Category("Charts"), TypeConverter(typeof(cxAxis_Converter))]
+        [Category("OpenCharts"), TypeConverter(typeof(cxAxis_Converter))]
         public cxAxis xAxis
         {
             get { return _xAxis; }
@@ -62,7 +66,7 @@ namespace OpenCharts
         }
 
         private cyAxis _yAxis = new cyAxis();
-        [Category("Charts"), TypeConverter(typeof(cyAxis_Converter))]
+        [Category("OpenCharts"), TypeConverter(typeof(cyAxis_Converter))]
         public cyAxis yAxis
         {
             get { return _yAxis; }
@@ -70,7 +74,7 @@ namespace OpenCharts
         }
 
         private cSeries[] _Series = null;
-        [Category("Charts"), TypeConverter(typeof(cSeries_Converter))]
+        [Category("OpenCharts"), TypeConverter(typeof(cSeries_Converter))]
         public cSeries[] Series
         {
             get { return _Series; }
@@ -90,7 +94,7 @@ namespace OpenCharts
             Color.FromArgb(0x8D, 0x46, 0x53),
             Color.FromArgb(0x91, 0xE8, 0xE1)
         };
-        [Category("Charts")]
+        [Category("OpenCharts")]
         public Color[] SeriesColorCollection
         {
             get { return _seriesColorCollection; }
@@ -98,28 +102,14 @@ namespace OpenCharts
         }
 
         private Font _seriesFont = new Font("Segoe UI", 10);
-        [Category("Charts")]
+        [Category("OpenCharts")]
         public Font SeriesFont
         {
             get { return _seriesFont; }
             set { _seriesFont = value; }
         }
 
-        private Color _seriesGridColor = Color.FromArgb(70, 70, 70);
-        [Category("Charts")]
-        public Color SeriesGridColor
-        {
-            get { return _seriesGridColor; }
-            set { _seriesGridColor = value; }
-        }
-
-        private Color _bottomLineColor = Color.FromArgb(180, 190, 230);
-        [Category("Charts")]
-        public Color BottomLineColor
-        {
-            get { return _bottomLineColor; }
-            set { _bottomLineColor = value; }
-        }
+        #endregion
 
         // Paint tools.
         private float _serScale = 1;
@@ -128,16 +118,16 @@ namespace OpenCharts
         private float _serScrollingPrevMouseX = 0;
 
         private string _serFormat = "0";
-        private PointF _serUpperPoint;
-        private PointF _serLowerPoint;
+        private PointF _plotUpperPoint;
+        private PointF _plotLowerPoint;
         private Point _serSelectedPoint = new Point(-1, -1);
 
         private Point _pointBottomLeft;
         private int _pointBottomLeft_LeftOffset = 64;
-        private int _pointBottomLeft_BottomOffset = 16;
+        private int _pointBottomLeft_BottomOffset = 20;
         private Point _pointBottomRight;
         private int _pointBottomRight_RightOffset = 16;
-        private int _pointBottomRight_BottomOffset = 16;
+        private int _pointBottomRight_BottomOffset = 20;
 
         private int _catsVisible = 0;
         private float _catSkipFactor = 1;
@@ -146,6 +136,8 @@ namespace OpenCharts
         {
             base.OnPaint(e);
 
+            if (!xAxis.GridValuesShow)
+                _pointBottomLeft_LeftOffset = 32;
             _RecalculateDraw();
 
             Graphics g = e.Graphics;
@@ -172,13 +164,13 @@ namespace OpenCharts
 
             int _catsToCount = xAxis.Categories.Length / (int)_serScale;
 
-            // yAxis.
+            // yAxis. Title.
             if (!String.IsNullOrEmpty(yAxis.Title.Text))
             {
                 g.RotateTransform(270);
                 StringFormat _titleFormat = new StringFormat();
                 _titleFormat.Alignment = (StringAlignment)(int)yAxis.Title.Aligment;
-                g.DrawString(yAxis.Title.Text, yAxis.Title.Font, new SolidBrush(xAxis.CategoriesColor), new RectangleF(-(_serLowerPoint.Y), 0, _serLowerPoint.Y - _serUpperPoint.Y, 20), _titleFormat);
+                g.DrawString(yAxis.Title.Text, yAxis.Title.Font, new SolidBrush(xAxis.CategoriesColor), new RectangleF(-(_plotLowerPoint.Y), 0, _plotLowerPoint.Y - _plotUpperPoint.Y, 20), _titleFormat);
                 g.RotateTransform(90);
             }
 
@@ -188,7 +180,7 @@ namespace OpenCharts
             // Series.
             if (_Series != null && _Series.Length > 0)
             {
-                // Set upper && lowe limits.
+                // Set upper && lower limits.
                 float _upperLimit = 0;
                 float _lowerLimit = 0;
                 foreach (cSeries _ser in Series)
@@ -213,18 +205,24 @@ namespace OpenCharts
                 else
                     _lowerLimit += _lowerLimit / .1f;
 
-                float _pixelsPerPoint = (_serLowerPoint.Y - _serUpperPoint.Y) / (_upperLimit - _lowerLimit);
+                float _pixelsPerPoint = (_plotLowerPoint.Y - _plotUpperPoint.Y) / (_upperLimit - _lowerLimit);
 
                 // Draw grid.
-                int _gridLinesCount = 8;
-                float _gridLinesHeight = (_serLowerPoint.Y - _serUpperPoint.Y) / _gridLinesCount;
-                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.Default;
-                for (int i = 0; i < _gridLinesCount; i++)
+                if (xAxis.GridLineCount > 0)
                 {
-                    PointF _gridPoint = new PointF(_pointBottomLeft_LeftOffset, _serLowerPoint.Y - _gridLinesHeight * (i));
-                    if (i != 0) g.DrawLine(Pens.LightGray, _gridPoint.X, _gridPoint.Y, this.Width - _pointBottomRight_RightOffset, _gridPoint.Y);
-                    float _gridPointValue = (((i) * _gridLinesHeight) / _pixelsPerPoint) + _lowerLimit;
-                    g.DrawString(_TransformNumberToShort(_gridPointValue), _seriesFont, new SolidBrush(_seriesGridColor), new PointF(_gridPoint.X - 36, _gridPoint.Y - 10));
+                    float _gridLinesHeight = (_plotLowerPoint.Y - _plotUpperPoint.Y) / xAxis.GridLineCount;
+                    g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.Default;
+                    for (int i = 0; i < xAxis.GridLineCount; i++)
+                    {
+                        PointF _gridPoint = new PointF(_pointBottomLeft_LeftOffset, _plotLowerPoint.Y - _gridLinesHeight * (i));
+                        if (i != 0) g.DrawLine(Pens.LightGray, _gridPoint.X, _gridPoint.Y, this.Width - _pointBottomRight_RightOffset, _gridPoint.Y);
+                        if (xAxis.GridValuesShow)
+                        {
+                            float _gridPointValue = (((i) * _gridLinesHeight) / _pixelsPerPoint) + _lowerLimit;
+                            string gridPointValueString = xAxis.GridValuesToShort ? _TransformNumberToShort(_gridPointValue) : _gridPointValue.ToString(_serFormat);
+                            g.DrawString(gridPointValueString, xAxis.GridValuesFont, new SolidBrush(xAxis.GridValuesColor), new PointF(_gridPoint.X - 36, _gridPoint.Y - 10));
+                        }
+                    }
                 }
 
                 g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
@@ -249,7 +247,7 @@ namespace OpenCharts
                                 if (double.TryParse(Series[k].Data[i], out _datavalue))
                                     _serPoints.Add(new cSeries.Point(
                                         _pointBottomLeft.X + ((float)_catsWidth / (float)_catsToCount) / 2 + ((float)_catsWidth / (float)_catsToCount) * (i - (int)_serCatOffset),
-                                        _serLowerPoint.Y - ((float)_datavalue - _lowerLimit) * _pixelsPerPoint));
+                                        _plotLowerPoint.Y - ((float)_datavalue - _lowerLimit) * _pixelsPerPoint));
                                 else
                                     _serPoints.Add(null);
                             }
@@ -270,24 +268,32 @@ namespace OpenCharts
                             {
                                 if (_serPoints[i] != null)
                                 {
+                                    if (_serPoints[i].X > _pointBottomRight.X)
+                                        continue; // dunno.
                                     switch (Series[k].Type)
                                     {
                                         case cSeries.eType.Line:
-                                            g.FillEllipse(_serEllipseBrush, _serPoints[i].X, _serPoints[i].Y, 8 / _catSkipFactor, 8 / _catSkipFactor);
-                                            if (i + 1 < _serPoints.Count && _serPoints[i + 1] != null)
-                                                g.DrawLine(_serLinePen, _serPoints[i].X + 4 / _catSkipFactor, _serPoints[i].Y + 4 / _catSkipFactor, _serPoints[i + 1].X + 4 / _catSkipFactor, _serPoints[i + 1].Y + 4 / _catSkipFactor);
-                                            break;
-                                        case cSeries.eType.Column:
-                                            g.FillRectangle(_serEllipseBrush, _serPoints[i].X + (columnscount > 1 ? - columnwidth * columnscount / 2 + columnwidth * columnindex : 0), _serPoints[i].Y, columnwidth, _serLowerPoint.Y - _serPoints[i].Y);
-                                            break;
-                                        case cSeries.eType.Area:
+                                            g.FillEllipse(_serEllipseBrush, _serPoints[i].X - 4 / _catSkipFactor, _serPoints[i].Y - 4 / _catSkipFactor, 8 / _catSkipFactor, 8 / _catSkipFactor);
                                             if (i + 1 < _serPoints.Count && _serPoints[i + 1] != null)
                                             {
+                                                if (_serPoints[i + 1].X > _pointBottomRight.X)
+                                                    continue; // dunno.
+                                                g.DrawLine(_serLinePen, _serPoints[i].X, _serPoints[i].Y, _serPoints[i + 1].X, _serPoints[i + 1].Y);
+                                            }
+                                            break;
+                                        case cSeries.eType.Column:
+                                            g.FillRectangle(_serEllipseBrush, _serPoints[i].X + (columnscount > 1 ? -columnwidth * columnscount / 2 + columnwidth * columnindex : 0), _serPoints[i].Y, columnwidth, _plotLowerPoint.Y - _serPoints[i].Y);
+                                            break;
+                                        case cSeries.eType.Area:
+                                            if (i + 1 < _serPoints.Count && _serPoints[i + 1] != null && i < _catsToCount)
+                                            {
+                                                if (_serPoints[i + 1].X > _pointBottomRight.X)
+                                                    continue; // dunno.
                                                 List<PointF> _areaPoints = new List<PointF>();
                                                 _areaPoints.Add(new PointF(_serPoints[i].X, _serPoints[i].Y));
                                                 _areaPoints.Add(new PointF(_serPoints[i + 1].X, _serPoints[i + 1].Y));
-                                                _areaPoints.Add(new PointF(_serPoints[i + 1].X, _serLowerPoint.Y));
-                                                _areaPoints.Add(new PointF(_serPoints[i].X, _serLowerPoint.Y));
+                                                _areaPoints.Add(new PointF(_serPoints[i + 1].X, _plotLowerPoint.Y));
+                                                _areaPoints.Add(new PointF(_serPoints[i].X, _plotLowerPoint.Y));
                                                 g.FillPolygon(_areaBrush, _areaPoints.ToArray());
                                                 g.DrawLine(_serLinePen, _serPoints[i].X, _serPoints[i].Y, _serPoints[i + 1].X, _serPoints[i + 1].Y);
                                             }
@@ -311,7 +317,7 @@ namespace OpenCharts
 
             // Bottom line.
             int _bottomLineHeight = 4;
-            Pen _bottomLinePen = new Pen(_bottomLineColor);
+            Pen _bottomLinePen = new Pen(xAxis.BottomLineColor);
             g.DrawLine(_bottomLinePen, _pointBottomLeft, _pointBottomRight);
             g.DrawLine(_bottomLinePen, _pointBottomLeft, new Point(_pointBottomLeft.X, _pointBottomLeft.Y + _bottomLineHeight));
             g.DrawLine(_bottomLinePen, _pointBottomRight, new Point(_pointBottomRight.X, _pointBottomRight.Y + _bottomLineHeight));
@@ -350,8 +356,10 @@ namespace OpenCharts
                 }
             }
 
+            // Zoom value.
             if (_serScale > 1)
-                g.DrawString((_serScale * 100).ToString() + "%", _seriesFont, new SolidBrush(_seriesGridColor), this.Width - 48, 0);
+                g.DrawString((_serScale * 100).ToString() + "%", new Font("Segoe UI", 10), new SolidBrush(Color.Gray), this.Width - 48, 8);
+
 
             // Scrollbar.
             if (_serScale > 1)
@@ -368,6 +376,19 @@ namespace OpenCharts
 
                     g.FillRectangle(new SolidBrush(Color.Gray), _pointBottomLeft.X + 2 + tsw * ((float)_serCatOffset / ((float)xAxis.Categories.Length - _catsVisible * _catSkipFactor)), _pointBottomLeft.Y - 6, scrollwidth, 4);
                 }
+            }
+            // Borders (chart + plot).
+            if (BorderWidth > 0)
+            {
+                Pen _borderPen = new Pen(BorderColor);
+                _borderPen.Width = BorderWidth;
+                g.DrawRectangle(_borderPen, 0, 0, this.Width - 1, this.Height - 1);
+            }
+            if (PlotBorderWidth > 0)
+            {
+                Pen _plotBorderPen = new Pen(PlotBorderColor);
+                _plotBorderPen.Width = PlotBorderWidth;
+                g.DrawRectangle(_plotBorderPen, _plotUpperPoint.X, _plotUpperPoint.Y, _pointBottomRight.X - _plotUpperPoint.X, _plotLowerPoint.Y - _plotUpperPoint.Y);
             }
         }
         protected override void OnMouseClick(MouseEventArgs e)
@@ -425,7 +446,7 @@ namespace OpenCharts
                 else
                     _lowerLimit += _lowerLimit / .1f;
 
-                float _pixelsPerPoint = (_serLowerPoint.Y - _serUpperPoint.Y) / (_upperLimit - _lowerLimit);
+                float _pixelsPerPoint = (_plotLowerPoint.Y - _plotUpperPoint.Y) / (_upperLimit - _lowerLimit);
 
                 int _serPointColor_current = 0;
                 Color _serPointColor = _seriesColorCollection[_serPointColor_current];
@@ -444,7 +465,7 @@ namespace OpenCharts
                                 if (double.TryParse(Series[k].Data[i], out _datavalue))
                                     _serPoints.Add(new cSeries.Point(
                                         _pointBottomLeft.X + ((float)_catsWidth / (float)_catsToCount) / 2 + ((float)_catsWidth / (float)_catsToCount) * (i - (int)_serCatOffset),
-                                        _serLowerPoint.Y - ((float)_datavalue - _lowerLimit) * _pixelsPerPoint));
+                                        _plotLowerPoint.Y - ((float)_datavalue - _lowerLimit) * _pixelsPerPoint));
                                 else
                                     _serPoints.Add(null);
                             }
@@ -569,22 +590,55 @@ namespace OpenCharts
             }
         }
 
+        private void _pointTooltip_Popup(object sender, PopupEventArgs e)
+        {
+            e.ToolTipSize = new Size((int)_pointTooltipInfo.Width, (int)_pointTooltipInfo.Height);
+        }
+        private void _pointTooltip_Draw(object sender, DrawToolTipEventArgs e)
+        {
+            Graphics gr = e.Graphics;
+            gr.Clear(Color.White);
+
+            float width = _pointTooltipInfo.Width;
+            float height = _pointTooltipInfo.Height;
+
+            // Shadow.
+            // g.FillRectangle(new SolidBrush(Color.FromArgb(50, 0, 0, 0)), 2, height, width - 2, 2);
+            //g.FillRectangle(new SolidBrush(Color.FromArgb(50, 0, 0, 0)), width, 2, 2, height);
+            gr.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.Default;
+            //g.FillRectangle(new SolidBrush(Color.FromArgb(150, 255, 255, 255)), 0, 0, width - 1, height - 1);
+
+            int r = _pointTooltipInfo.Color.R - 50; r = r < 0 ? 0 : r;
+            int g = _pointTooltipInfo.Color.G - 50; g = g < 0 ? 0 : g;
+            int b = _pointTooltipInfo.Color.B - 50; b = b < 0 ? 0 : b;
+
+            _pointTooltipInfo.Color = Color.FromArgb(r, g, b);
+            gr.DrawRectangle(new Pen(_pointTooltipInfo.Color), 0, 0, width - 1, height - 1);
+            gr.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            gr.FillEllipse(new SolidBrush(_pointTooltipInfo.Color), 4, 19, 8, 8);
+            gr.DrawString(xAxis.Categories[_pointTooltipInfo.CatIndex], xAxis.CategoriesFont, new SolidBrush(xAxis.CategoriesColor), new PointF(6, 0));
+            gr.DrawString(_pointTooltipInfo.Value, xAxis.CategoriesFont, new SolidBrush(xAxis.CategoriesColor), new PointF(16, 16));
+        }
+
         private void _RecalculateDraw()
         {
             _pointBottomLeft = new Point(_pointBottomLeft_LeftOffset, this.Height - _pointBottomLeft_BottomOffset);
             _pointBottomRight = new Point(this.Width - _pointBottomRight_RightOffset, this.Height - _pointBottomRight_BottomOffset);
 
-            _serUpperPoint = new PointF(_pointBottomLeft_LeftOffset - 16, 0);
-            _serLowerPoint = new PointF(_pointBottomLeft_LeftOffset - 16, _pointBottomLeft.Y - _seriesFont.Height);
+            _plotUpperPoint = new PointF(_pointBottomLeft_LeftOffset, 32);
+            _plotLowerPoint = new PointF(_pointBottomLeft_LeftOffset, _pointBottomLeft.Y - _seriesFont.Height);
         }
         private string _TransformNumberToShort(float number)
         {
             string val = number.ToString(_serFormat);
-            if (Math.Abs(number) > 1000000)
-                val = val.Remove(val.Length - 6, 6) + "M";
+            if (Math.Abs(number) > 1000000000)
+                val = val.Remove(val.Length - 9, 9) + "B";
             else
-                if (Math.Abs(number) > 1000)
-                    val = val.Remove(val.Length - 3, 3) + "K";
+                if (Math.Abs(number) > 1000000)
+                    val = val.Remove(val.Length - 6, 6) + "M";
+                else
+                    if (Math.Abs(number) > 1000)
+                        val = val.Remove(val.Length - 3, 3) + "K";
 
             return val;
         }
@@ -594,7 +648,7 @@ namespace OpenCharts
     }
     public enum eScrolling
     {
-        None, 
+        None,
         Horizontal,
         HorizonatlReversed
     }
@@ -625,6 +679,52 @@ namespace OpenCharts
             get { return _CategoriesMinWidth; }
             set { _CategoriesMinWidth = value; }
         }
+
+        // Grid.
+        private Color _GridLineColor = Color.FromArgb(0xC0, 0xC0, 0xC0);
+        public Color GridLineColor
+        {
+            get { return _GridLineColor; }
+            set { _GridLineColor = value; }
+        }
+        private int _GridLineCount = 8;
+        public int GridLineCount
+        {
+            get { return _GridLineCount; }
+            set { _GridLineCount = value; }
+        }
+        private bool _GridValuesShow = true;
+        public bool GridValuesShow
+        {
+            get { return _GridValuesShow; }
+            set { _GridValuesShow = value; }
+        }
+        private bool _GridValuesToShort = true;
+        public bool GridValuesToShort
+        {
+            get { return _GridValuesToShort; }
+            set { _GridValuesToShort = value; }
+        }
+        private Font _GridValuesFont = new Font("Segoe UI", 8);
+        public Font GridValuesFont
+        {
+            get { return _GridValuesFont; }
+            set { _GridValuesFont = value; }
+        }
+        private Color _GridValuesColor = Color.FromArgb(70, 70, 70);
+        public Color GridValuesColor
+        {
+            get { return _GridValuesColor; }
+            set { _GridValuesColor = value; }
+        }
+
+        // Bottom line.
+        private Color _BottomLineColor = Color.FromArgb(0xC0, 0xD0, 0xE0);
+        public Color BottomLineColor
+        {
+            get { return _BottomLineColor; }
+            set { _BottomLineColor = value; }
+        }
     }
     public class cxAxis_Converter : ExpandableObjectConverter
     {
@@ -638,7 +738,7 @@ namespace OpenCharts
             return base.ConvertTo(context, culture, value, destinationType);
         }
     }
-    
+
     public class cyAxis
     {
         private cTitle _Title = new cTitle();
