@@ -49,8 +49,8 @@ namespace OpenCharts
             gr.DrawRectangle(new Pen(_pointTooltipInfo.Color), 0, 0, width - 1, height - 1);
             gr.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             gr.FillEllipse(new SolidBrush(_pointTooltipInfo.Color), 4, 19, 8, 8);
-            gr.DrawString(xAxis.Categories[_pointTooltipInfo.CatIndex], _catFont, new SolidBrush(_catColor), new PointF(6, 0));
-            gr.DrawString(_pointTooltipInfo.Value, _catFont, new SolidBrush(_catColor), new PointF(16, 16));
+            gr.DrawString(xAxis.Categories[_pointTooltipInfo.CatIndex], xAxis.CategoriesFont, new SolidBrush(xAxis.CategoriesColor), new PointF(6, 0));
+            gr.DrawString(_pointTooltipInfo.Value, xAxis.CategoriesFont, new SolidBrush(xAxis.CategoriesColor), new PointF(16, 16));
         }
 
         private cxAxis _xAxis = new cxAxis();
@@ -61,29 +61,23 @@ namespace OpenCharts
             set { _xAxis = value; }
         }
 
+        private cyAxis _yAxis = new cyAxis();
+        [Category("Charts"), TypeConverter(typeof(cyAxis_Converter))]
+        public cyAxis yAxis
+        {
+            get { return _yAxis; }
+            set { _yAxis = value; }
+        }
+
         private cSeries[] _Series = null;
-        [Category("Charts")]
+        [Category("Charts"), TypeConverter(typeof(cSeries_Converter))]
         public cSeries[] Series
         {
             get { return _Series; }
             set { _Series = value; }
         }
 
-
-        // Paint tools.
-        private Font _xAxisTitleFont = new Font("Consolas", 12, FontStyle.Bold);
-
-        private float _serScale = 1;
-        private float _serCatOffset = 0;
-        private bool _serScrolling = false;
-        private float _serScrollingPrevMouseX = 0;
-        private Font _serFont = new Font("Segoe UI", 10);
-        private Color _serColor = Color.FromArgb(70, 70, 70);
-        private string _serFormat = "0";
-        private PointF _serUpperPoint;
-        private PointF _serLowerPoint;
-        private Point _serSelectedPoint = new Point(-1, -1);
-        private Color[] _serColorCollection = new Color[]
+        private Color[] _seriesColorCollection = new Color[]
         {
             Color.FromArgb(0x7C, 0xB5, 0xEC),
             Color.FromArgb(0x43, 0x43, 0x48),
@@ -96,8 +90,48 @@ namespace OpenCharts
             Color.FromArgb(0x8D, 0x46, 0x53),
             Color.FromArgb(0x91, 0xE8, 0xE1)
         };
+        [Category("Charts")]
+        public Color[] SeriesColorCollection
+        {
+            get { return _seriesColorCollection; }
+            set { _seriesColorCollection = value; }
+        }
 
-        private Pen _penBottom = new Pen(Color.FromArgb(180, 190, 230));
+        private Font _seriesFont = new Font("Segoe UI", 10);
+        [Category("Charts")]
+        public Font SeriesFont
+        {
+            get { return _seriesFont; }
+            set { _seriesFont = value; }
+        }
+
+        private Color _seriesGridColor = Color.FromArgb(70, 70, 70);
+        [Category("Charts")]
+        public Color SeriesGridColor
+        {
+            get { return _seriesGridColor; }
+            set { _seriesGridColor = value; }
+        }
+
+        private Color _bottomLineColor = Color.FromArgb(180, 190, 230);
+        [Category("Charts")]
+        public Color BottomLineColor
+        {
+            get { return _bottomLineColor; }
+            set { _bottomLineColor = value; }
+        }
+
+        // Paint tools.
+        private float _serScale = 1;
+        private float _serCatOffset = 0;
+        private eScrolling _serScrolling = eScrolling.None;
+        private float _serScrollingPrevMouseX = 0;
+
+        private string _serFormat = "0";
+        private PointF _serUpperPoint;
+        private PointF _serLowerPoint;
+        private Point _serSelectedPoint = new Point(-1, -1);
+
         private Point _pointBottomLeft;
         private int _pointBottomLeft_LeftOffset = 64;
         private int _pointBottomLeft_BottomOffset = 16;
@@ -105,8 +139,6 @@ namespace OpenCharts
         private int _pointBottomRight_RightOffset = 16;
         private int _pointBottomRight_BottomOffset = 16;
 
-        private Font _catFont = new Font("Segoe UI", 8, FontStyle.Bold);
-        private Color _catColor = Color.FromArgb(70, 70, 70);
         private int _catsVisible = 0;
         private float _catSkipFactor = 1;
 
@@ -123,9 +155,9 @@ namespace OpenCharts
             float _widthPerCat = (float)_catsWidth / (float)xAxis.Categories.Length;
             _catsVisible = xAxis.Categories.Length - (int)_serCatOffset;
             _catSkipFactor = 1;
-            if (_widthPerCat < 32)
+            if (_widthPerCat < xAxis.CategoriesMinWidth)
             {
-                _catsVisible = _catsWidth / 32;
+                _catsVisible = _catsWidth / xAxis.CategoriesMinWidth;
                 _widthPerCat = _catsWidth / _catsVisible;
                 _catSkipFactor = ((float)xAxis.Categories.Length) / (float)_catsVisible;
                 _catSkipFactor /= _serScale;
@@ -140,13 +172,13 @@ namespace OpenCharts
 
             int _catsToCount = xAxis.Categories.Length / (int)_serScale;
 
-            // xAxis.
-            if (!String.IsNullOrEmpty(xAxis.Title))
+            // yAxis.
+            if (!String.IsNullOrEmpty(yAxis.Title.Text))
             {
                 g.RotateTransform(270);
                 StringFormat _titleFormat = new StringFormat();
-                _titleFormat.Alignment = StringAlignment.Center;
-                g.DrawString(xAxis.Title, _xAxisTitleFont, new SolidBrush(_catColor), new RectangleF(-(_serLowerPoint.Y), 0, _serLowerPoint.Y - _serUpperPoint.Y, 20), _titleFormat);
+                _titleFormat.Alignment = (StringAlignment)(int)yAxis.Title.Aligment;
+                g.DrawString(yAxis.Title.Text, yAxis.Title.Font, new SolidBrush(xAxis.CategoriesColor), new RectangleF(-(_serLowerPoint.Y), 0, _serLowerPoint.Y - _serUpperPoint.Y, 20), _titleFormat);
                 g.RotateTransform(90);
             }
 
@@ -192,13 +224,13 @@ namespace OpenCharts
                     PointF _gridPoint = new PointF(_pointBottomLeft_LeftOffset, _serLowerPoint.Y - _gridLinesHeight * (i));
                     if (i != 0) g.DrawLine(Pens.LightGray, _gridPoint.X, _gridPoint.Y, this.Width - _pointBottomRight_RightOffset, _gridPoint.Y);
                     float _gridPointValue = (((i) * _gridLinesHeight) / _pixelsPerPoint) + _lowerLimit;
-                    g.DrawString(_TransformNumberToShort(_gridPointValue), _serFont, new SolidBrush(_serColor), new PointF(_gridPoint.X - 36, _gridPoint.Y - 10));
+                    g.DrawString(_TransformNumberToShort(_gridPointValue), _seriesFont, new SolidBrush(_seriesGridColor), new PointF(_gridPoint.X - 36, _gridPoint.Y - 10));
                 }
 
                 g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
                 int _serPointColor_current = 0;
-                Color _serPointColor = _serColorCollection[_serPointColor_current];
+                Color _serPointColor = _seriesColorCollection[_serPointColor_current];
 
                 if (xAxis.Categories != null)
                 {
@@ -270,23 +302,24 @@ namespace OpenCharts
                         }
                         // Next color.
                         _serPointColor_current++;
-                        if (_serColorCollection.Length <= _serPointColor_current)
+                        if (_seriesColorCollection.Length <= _serPointColor_current)
                             _serPointColor_current = 0;
-                        _serPointColor = _serColorCollection[_serPointColor_current];
+                        _serPointColor = _seriesColorCollection[_serPointColor_current];
                     }
                 }
             }
 
             // Bottom line.
             int _bottomLineHeight = 4;
-            g.DrawLine(_penBottom, _pointBottomLeft, _pointBottomRight);
-            g.DrawLine(_penBottom, _pointBottomLeft, new Point(_pointBottomLeft.X, _pointBottomLeft.Y + _bottomLineHeight));
-            g.DrawLine(_penBottom, _pointBottomRight, new Point(_pointBottomRight.X, _pointBottomRight.Y + _bottomLineHeight));
+            Pen _bottomLinePen = new Pen(_bottomLineColor);
+            g.DrawLine(_bottomLinePen, _pointBottomLeft, _pointBottomRight);
+            g.DrawLine(_bottomLinePen, _pointBottomLeft, new Point(_pointBottomLeft.X, _pointBottomLeft.Y + _bottomLineHeight));
+            g.DrawLine(_bottomLinePen, _pointBottomRight, new Point(_pointBottomRight.X, _pointBottomRight.Y + _bottomLineHeight));
 
             // Categories.
             if (xAxis.Categories != null)
             {
-                SolidBrush _catBrush = new SolidBrush(_catColor);
+                SolidBrush _catBrush = new SolidBrush(xAxis.CategoriesColor);
                 StringFormat _catFormat = new StringFormat();
                 _catFormat.Alignment = StringAlignment.Center;
 
@@ -295,7 +328,7 @@ namespace OpenCharts
                 {
                     Point _linePoint = new Point(_pointBottomLeft.X + (_catIndex + 1) * (int)_widthPerCat, _pointBottomLeft.Y);
                     if (_catIndex + 1 != _catsVisible)
-                        g.DrawLine(_penBottom, _linePoint, new Point(_linePoint.X, _linePoint.Y + _bottomLineHeight));
+                        g.DrawLine(_bottomLinePen, _linePoint, new Point(_linePoint.X, _linePoint.Y + _bottomLineHeight));
                     if (i + _serCatOffset < xAxis.Categories.Length)
                     {
                         float temp = 0;
@@ -304,7 +337,7 @@ namespace OpenCharts
                             string catvalue = xAxis.Categories[(int)_serCatOffset + (int)Math.Ceiling(i)];
                             if (float.TryParse(catvalue, out temp))
                                 catvalue = _TransformNumberToShort(temp);
-                            g.DrawString(catvalue, _catFont, _catBrush, new RectangleF(_linePoint.X - _widthPerCat, _linePoint.Y + 2, _widthPerCat, 14), _catFormat);
+                            g.DrawString(catvalue, xAxis.CategoriesFont, _catBrush, new RectangleF(_linePoint.X - _widthPerCat, _linePoint.Y + 2, _widthPerCat, 14), _catFormat);
                         }
                         catch (IndexOutOfRangeException)
                         {
@@ -318,7 +351,7 @@ namespace OpenCharts
             }
 
             if (_serScale > 1)
-                g.DrawString((_serScale * 100).ToString() + "%", _serFont, new SolidBrush(_serColor), this.Width - 48, 0);
+                g.DrawString((_serScale * 100).ToString() + "%", _seriesFont, new SolidBrush(_seriesGridColor), this.Width - 48, 0);
 
             // Scrollbar.
             if (_serScale > 1)
@@ -347,9 +380,9 @@ namespace OpenCharts
             float _widthPerCat = (float)_catsWidth / (float)xAxis.Categories.Length;
             _catsVisible = xAxis.Categories.Length - (int)_serCatOffset;
             _catSkipFactor = 1;
-            if (_widthPerCat < 32)
+            if (_widthPerCat < xAxis.CategoriesMinWidth)
             {
-                _catsVisible = _catsWidth / 32;
+                _catsVisible = _catsWidth / xAxis.CategoriesMinWidth;
                 _widthPerCat = _catsWidth / _catsVisible;
                 _catSkipFactor = ((float)xAxis.Categories.Length) / (float)_catsVisible;
                 _catSkipFactor /= _serScale;
@@ -395,7 +428,7 @@ namespace OpenCharts
                 float _pixelsPerPoint = (_serLowerPoint.Y - _serUpperPoint.Y) / (_upperLimit - _lowerLimit);
 
                 int _serPointColor_current = 0;
-                Color _serPointColor = _serColorCollection[_serPointColor_current];
+                Color _serPointColor = _seriesColorCollection[_serPointColor_current];
 
                 bool _clearSelected = false;
                 int _sern = 0;
@@ -449,9 +482,9 @@ namespace OpenCharts
                         _sern++;
                         // Next color.
                         _serPointColor_current++;
-                        if (_serColorCollection.Length <= _serPointColor_current)
+                        if (_seriesColorCollection.Length <= _serPointColor_current)
                             _serPointColor_current = 0;
-                        _serPointColor = _serColorCollection[_serPointColor_current];
+                        _serPointColor = _seriesColorCollection[_serPointColor_current];
                     }
                 //if (_clearSelected)
                 {
@@ -490,19 +523,24 @@ namespace OpenCharts
                 if (e.Location.Y > _pointBottomLeft.Y - 12 && e.Location.Y < _pointBottomLeft.Y + 4)
                 {
                     _serScrollingPrevMouseX = e.Location.X;
-                    _serScrolling = true;
+                    _serScrolling = eScrolling.Horizontal;
+                }
+                else
+                {
+                    _serScrollingPrevMouseX = e.Location.X;
+                    _serScrolling = eScrolling.HorizonatlReversed;
                 }
         }
         protected override void OnMouseUp(MouseEventArgs e)
         {
             base.OnMouseUp(e);
-            if (_serScrolling)
-                _serScrolling = false;
+            if (_serScrolling != eScrolling.None)
+                _serScrolling = eScrolling.None;
         }
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
-            if (_serScrolling)
+            if (_serScrolling != eScrolling.None)
             {
                 float scrollbarwidth = _pointBottomRight.X - _pointBottomLeft.X;
                 float scrollwidth = ((float)_pointBottomRight.X - (float)_pointBottomLeft.X - 4) / _serScale;
@@ -513,10 +551,10 @@ namespace OpenCharts
 
                 if (e.Location.X > _serScrollingPrevMouseX)
                 {
-                    _serCatOffset += mcats;
+                    _serCatOffset += _serScrolling == eScrolling.Horizontal ? mcats : -mcats;
                 }
                 else
-                    _serCatOffset -= mcats;
+                    _serCatOffset -= _serScrolling == eScrolling.Horizontal ? mcats : -mcats; ;
                 if (_serCatOffset < 0)
                     _serCatOffset = 0;
                 else
@@ -537,7 +575,7 @@ namespace OpenCharts
             _pointBottomRight = new Point(this.Width - _pointBottomRight_RightOffset, this.Height - _pointBottomRight_BottomOffset);
 
             _serUpperPoint = new PointF(_pointBottomLeft_LeftOffset - 16, 0);
-            _serLowerPoint = new PointF(_pointBottomLeft_LeftOffset - 16, _pointBottomLeft.Y - _serFont.Height);
+            _serLowerPoint = new PointF(_pointBottomLeft_LeftOffset - 16, _pointBottomLeft.Y - _seriesFont.Height);
         }
         private string _TransformNumberToShort(float number)
         {
@@ -554,20 +592,38 @@ namespace OpenCharts
         private ToolTip _pointTooltip = new ToolTip();
         private TooltipInfo _pointTooltipInfo = new TooltipInfo();
     }
+    public enum eScrolling
+    {
+        None, 
+        Horizontal,
+        HorizonatlReversed
+    }
 
     public class cxAxis
     {
-        private string _Title;
-        public string Title
-        {
-            get { return _Title; }
-            set { _Title = value; }
-        }
         private string[] _Categories;
         public string[] Categories
         {
             get { return _Categories; }
             set { _Categories = value; }
+        }
+        private Font _CategoriesFont = new Font("Segoe UI", 8, FontStyle.Bold);
+        public Font CategoriesFont
+        {
+            get { return _CategoriesFont; }
+            set { _CategoriesFont = value; }
+        }
+        private Color _CategoriesColor = Color.FromArgb(70, 70, 70);
+        public Color CategoriesColor
+        {
+            get { return _CategoriesColor; }
+            set { _CategoriesColor = value; }
+        }
+        private int _CategoriesMinWidth = 32;
+        public int CategoriesMinWidth
+        {
+            get { return _CategoriesMinWidth; }
+            set { _CategoriesMinWidth = value; }
         }
     }
     public class cxAxis_Converter : ExpandableObjectConverter
@@ -579,6 +635,55 @@ namespace OpenCharts
             foreach (string cat in axis.Categories)
                 cats += cat + "; ";
             return cats;
+            return base.ConvertTo(context, culture, value, destinationType);
+        }
+    }
+    
+    public class cyAxis
+    {
+        private cTitle _Title = new cTitle();
+        [TypeConverter(typeof(cTitle_Converter))]
+        public cTitle Title
+        {
+            get { return _Title; }
+            set { _Title = value; }
+        }
+
+        public class cTitle
+        {
+            private string _Text = String.Empty;
+            public string Text
+            {
+                get { return _Text; }
+                set { _Text = value; }
+            }
+            private Font _Font = new Font("Consolas", 12, FontStyle.Bold);
+            public Font Font
+            {
+                get { return _Font; }
+                set { _Font = value; }
+            }
+            private AligmentVertical _Aligment = AligmentVertical.Middle;
+
+            public AligmentVertical Aligment
+            {
+                get { return _Aligment; }
+                set { _Aligment = value; }
+            }
+        }
+        public class cTitle_Converter : ExpandableObjectConverter
+        {
+            public override object ConvertTo(ITypeDescriptorContext context, System.Globalization.CultureInfo culture, object value, Type destinationType)
+            {
+                return ((cTitle)value).Text;
+            }
+        }
+    }
+    public class cyAxis_Converter : ExpandableObjectConverter
+    {
+        public override object ConvertTo(ITypeDescriptorContext context, System.Globalization.CultureInfo culture, object value, Type destinationType)
+        {
+            return String.Empty;
             return base.ConvertTo(context, culture, value, destinationType);
         }
     }
@@ -622,6 +727,32 @@ namespace OpenCharts
             Area
         }
     }
+    public class cSeries_Converter : TypeConverter
+    {
+        public override object ConvertTo(ITypeDescriptorContext context, System.Globalization.CultureInfo culture, object value, Type destinationType)
+        {
+            cSeries[] val = (cSeries[])value;
+            string sval = String.Empty;
+            foreach (cSeries s in val)
+                sval += s.Name + "; ";
+            return sval;
+            return base.ConvertTo(context, culture, value, destinationType);
+        }
+    }
+
+    public enum AligmentHorizontal
+    {
+        Left,
+        Center,
+        Right
+    }
+    public enum AligmentVertical
+    {
+        Low,
+        Middle,
+        High
+    }
+
     public class TooltipInfo
     {
         public PointF Point = new PointF();
