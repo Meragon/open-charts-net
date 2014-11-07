@@ -557,7 +557,8 @@ namespace OpenCharts
             if (_serScale <= 1)
             {
                 _serScale = 1;
-                _serCatOffset[_serScrollingAxis] = 0;
+                for (int i = 0; i < xAxis.Length; i++)
+                    _serCatOffset[i] = 0;
                 this.Refresh();
             }
             else
