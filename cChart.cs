@@ -23,6 +23,9 @@ namespace OpenCharts
             _pointTooltip.Popup += _pointTooltip_Popup;
 
             _serCatOffset = new float[xAxis.Length];
+            _serScale = new float[xAxis.Length];
+            for (int i = 0; i < xAxis.Length; i++)
+                _serScale[i] = 1;
         }
 
         #region Properties
@@ -72,6 +75,9 @@ namespace OpenCharts
                 if (_xAxis == null)
                     _xAxis = new cxAxis[] { new cxAxis() };
                 _serCatOffset = new float[_xAxis.Length];
+                _serScale = new float[xAxis.Length];
+                for (int i = 0; i < xAxis.Length; i++)
+                    _serScale[i] = 1;
             }
         }
 
@@ -122,7 +128,7 @@ namespace OpenCharts
         #endregion
 
         // Paint tools.
-        private float _serScale = 1;
+        private float[] _serScale;
         private float[] _serCatOffset;
         private eScrolling _serScrolling = eScrolling.None;
         private float _serScrollingPrevMouseX = 0;
@@ -173,8 +179,8 @@ namespace OpenCharts
                     _catsVisible[i] = _catsWidth / xAxis[i].CategoriesMinWidth;
                     _widthPerCat[i] = _catsWidth / _catsVisible[i];
                     _catSkipFactor[i] = ((float)xAxis[i].Categories.Length) / (float)_catsVisible[i];
-                    _catSkipFactor[i] /= _serScale;
-                    if (_catsVisible[i] >= (xAxis[i].Categories.Length / (_serScale)))
+                    _catSkipFactor[i] /= _serScale[i];
+                    if (_catsVisible[i] >= (xAxis[i].Categories.Length / (_serScale[i])))
                         _catSkipFactor[i] = 1; // todo: not actually fix. 
                     if (_catSkipFactor[i] == 0)
                     {
@@ -182,7 +188,7 @@ namespace OpenCharts
                         //_serScale = _serScale > 1.5f ? _serScale - 1 : 1;
                     }
                 }
-                _catsToCount[i] = xAxis[i].Categories.Length / (int)_serScale;
+                _catsToCount[i] = xAxis[i].Categories.Length / (int)_serScale[i];
             }
 
             // yAxis. Title.
@@ -385,13 +391,13 @@ namespace OpenCharts
                 }
 
                 // Scrollbar.
-                if (_serScale > 1)
+                if (_serScale[xa] > 1)
                 {
                     int maxoffset = xAxis[xa].Categories.Length - _catsVisible[xa];
                     if (maxoffset > 0)
                     {
                         float scrollbarwidth = _pointBottomRight.X - _pointBottomLeft.X;
-                        float scrollwidth = ((float)_pointBottomRight.X - (float)_pointBottomLeft.X - 4) / _serScale;
+                        float scrollwidth = ((float)_pointBottomRight.X - (float)_pointBottomLeft.X - 4) / _serScale[xa];
                         float tsw = scrollbarwidth - scrollwidth - 4;
 
                         g.DrawRectangle(Pens.LightGray, _pointBottomLeft.X, _pointBottomLeft.Y - 8 + 24 * xa, scrollbarwidth, 8);
@@ -401,8 +407,8 @@ namespace OpenCharts
             }
 
             // Zoom value.
-            if (_serScale > 1)
-                g.DrawString((_serScale * 100).ToString() + "%", new Font("Segoe UI", 10), new SolidBrush(Color.Gray), this.Width - 48, 8);
+            if (_serScale[_serScrollingAxis] > 1)
+                g.DrawString((_serScale[_serScrollingAxis] * 100).ToString() + "%", new Font("Segoe UI", 10), new SolidBrush(Color.Gray), this.Width - 48, 8);
 
             // Borders (chart + plot).
             if (BorderWidth > 0)
@@ -547,18 +553,18 @@ namespace OpenCharts
             base.OnMouseWheel(e);
             if (e.Delta > 0)
             {
-                if (_catsVisible[_serScrollingAxis] < (xAxis[_serScrollingAxis].Categories.Length / (_serScale)))
-                    _serScale++;
+                if (_catsVisible[_serScrollingAxis] < (xAxis[_serScrollingAxis].Categories.Length / (_serScale[_serScrollingAxis])))
+                    _serScale[_serScrollingAxis]++;
             }
             else
             {
-                _serScale--;
+                _serScale[_serScrollingAxis]--;
             }
-            if (_serScale <= 1)
+            if (_serScale[_serScrollingAxis] <= 1)
             {
-                _serScale = 1;
-                for (int i = 0; i < xAxis.Length; i++)
-                    _serCatOffset[i] = 0;
+                _serScale[_serScrollingAxis] = 1;
+                //for (int i = 0; i < xAxis.Length; i++)
+                _serCatOffset[_serScrollingAxis] = 0;
                 this.Refresh();
             }
             else
@@ -568,7 +574,7 @@ namespace OpenCharts
         {
             base.OnMouseDown(e);
             // Check scrollbar.
-            if (_serScale != 1)
+            if (_serScale[_serScrollingAxis] != -1)
                 for (int i = 0; i < xAxis.Length; i++)
                     if (e.Location.Y > _pointBottomLeft.Y - 8 + i * 24 && e.Location.Y < _pointBottomLeft.Y + 8 + i * 24)
                     {
@@ -599,7 +605,7 @@ namespace OpenCharts
             if (_serScrolling != eScrolling.None)
             {
                 float scrollbarwidth = _pointBottomRight.X - _pointBottomLeft.X;
-                float scrollwidth = ((float)_pointBottomRight.X - (float)_pointBottomLeft.X - 4) / _serScale;
+                float scrollwidth = ((float)_pointBottomRight.X - (float)_pointBottomLeft.X - 4) / _serScale[_serScrollingAxis];
                 float tsw = scrollbarwidth - scrollwidth - 4;
                 float pixelsPerCat = tsw * ((float)1 / ((float)xAxis[_serScrollingAxis].Categories.Length - _catsVisible[_serScrollingAxis] * _catSkipFactor[_serScrollingAxis]));
                 float mcats = Math.Abs(e.Location.X - _serScrollingPrevMouseX);
