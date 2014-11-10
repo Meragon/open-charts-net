@@ -141,10 +141,10 @@ namespace OpenCharts
 
         private Point _pointBottomLeft;
         private int _pointBottomLeft_LeftOffset = 64;
-        private int _pointBottomLeft_BottomOffset = 20;
+        private int _pointBottomLeft_BottomOffset = 0;
         private Point _pointBottomRight;
         private int _pointBottomRight_RightOffset = 16;
-        private int _pointBottomRight_BottomOffset = 20;
+        private int _pointBottomRight_BottomOffset = 0;
 
         private int[] _catsVisible;
         private float[] _catSkipFactor;
@@ -377,7 +377,7 @@ namespace OpenCharts
                                 string catvalue = xAxis[xa].Categories[(int)_serCatOffset[xa] + (int)Math.Ceiling(i)];
                                 if (float.TryParse(catvalue, out temp))
                                     catvalue = _TransformNumberToShort(temp);
-                                g.DrawString(catvalue, xAxis[xa].CategoriesFont, _catBrush, new RectangleF(_linePoint.X - _widthPerCat[xa], _linePoint.Y + 2 + 28 * xa, _widthPerCat[xa], 14), _catFormat);
+                                g.DrawString(catvalue, xAxis[xa].CategoriesFont, _catBrush, new RectangleF(_linePoint.X - _widthPerCat[xa], _linePoint.Y + 2 + 24 * xa, _widthPerCat[xa], 14), _catFormat);
                             }
                             catch (IndexOutOfRangeException)
                             {
@@ -403,6 +403,13 @@ namespace OpenCharts
                         g.DrawRectangle(Pens.LightGray, _pointBottomLeft.X, _pointBottomLeft.Y - 8 + 24 * xa, scrollbarwidth, 8);
                         g.FillRectangle(new SolidBrush(Color.Gray), _pointBottomLeft.X + 2 + tsw * ((float)_serCatOffset[xa] / ((float)xAxis[xa].Categories.Length - _catsVisible[xa] * _catSkipFactor[xa])), _pointBottomLeft.Y - 6 + 24 * xa, scrollwidth, 4);
                     }
+                }
+                if (_serScale[xa] > 1)
+                    g.DrawRectangle(Pens.LightGray, _pointBottomLeft.X - 12, _pointBottomLeft.Y - 8 + 24 * xa, 8, 8);
+                if (_serScrollingAxis == xa)
+                {
+                    g.DrawRectangle(Pens.LightGray, _pointBottomLeft.X - 12, _pointBottomLeft.Y - 8 + 24 * xa, 8, 8);
+                    g.FillRectangle(Brushes.LightGray, _pointBottomLeft.X - 10, _pointBottomLeft.Y - 6 + 24 * xa, 4, 4);
                 }
             }
 
@@ -595,6 +602,7 @@ namespace OpenCharts
             base.OnMouseUp(e);
             if (_serScrolling != eScrolling.None)
             {
+                this.Refresh();
                 _serScrolling = eScrolling.None;
                 //_serScrollingAxis = -1;
             }
@@ -602,7 +610,7 @@ namespace OpenCharts
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
-            if (_serScrolling != eScrolling.None)
+            if (_serScrolling != eScrolling.None && _serScale[_serScrollingAxis] > 1)
             {
                 float scrollbarwidth = _pointBottomRight.X - _pointBottomLeft.X;
                 float scrollwidth = ((float)_pointBottomRight.X - (float)_pointBottomLeft.X - 4) / _serScale[_serScrollingAxis];
@@ -663,8 +671,8 @@ namespace OpenCharts
 
         private void _RecalculateDraw()
         {
-            _pointBottomLeft = new Point(_pointBottomLeft_LeftOffset, this.Height - _pointBottomLeft_BottomOffset - 16 * xAxis.Length);
-            _pointBottomRight = new Point(this.Width - _pointBottomRight_RightOffset, this.Height - _pointBottomRight_BottomOffset - 16 * xAxis.Length);
+            _pointBottomLeft = new Point(_pointBottomLeft_LeftOffset, this.Height - _pointBottomLeft_BottomOffset - 24 * xAxis.Length);
+            _pointBottomRight = new Point(this.Width - _pointBottomRight_RightOffset, this.Height - _pointBottomRight_BottomOffset - 24 * xAxis.Length);
 
             _plotUpperPoint = new PointF(_pointBottomLeft_LeftOffset, 32);
             _plotLowerPoint = new PointF(_pointBottomLeft_LeftOffset, _pointBottomLeft.Y - _seriesFont.Height);
