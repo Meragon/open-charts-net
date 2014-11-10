@@ -327,7 +327,28 @@ namespace OpenCharts
                                                     g.DrawLine(_serLinePen, _serPoints[i].X, _serPoints[i].Y, _serPoints[i + 1].X, _serPoints[i + 1].Y);
                                                 }
                                                 else
-                                                    g.FillEllipse(_serEllipseBrush, _serPoints[i].X - 4, _serPoints[i].Y - 4, 8 / _catSkipFactor[xa], 8 / _catSkipFactor[xa]);
+                                                    g.FillEllipse(_serEllipseBrush, _serPoints[i].X - 4 / _catSkipFactor[xa], _serPoints[i].Y - 4 / _catSkipFactor[xa], 8 / _catSkipFactor[xa], 8 / _catSkipFactor[xa]);
+                                                break;
+                                            case cSeries.eType.AreaSolid:
+                                                if (i + 1 < _serPoints.Count && _serPoints[i + 1] != null && i < _catsToCount[xa])
+                                                {
+                                                    if (_serPoints[i + 1].X > _pointBottomRight.X)
+                                                        continue; // dunno.
+                                                    float half_dis = (_serPoints[i + 1].X - _serPoints[i].X) / 2;
+                                                    List<PointF> _areaPoints = new List<PointF>();
+                                                    _areaPoints.Add(new PointF(_serPoints[i].X - half_dis, _serPoints[i].Y));
+                                                    _areaPoints.Add(new PointF(_serPoints[i].X + half_dis, _serPoints[i].Y));
+                                                    _areaPoints.Add(new PointF(_serPoints[i].X + half_dis, _serPoints[i + 1].Y));
+                                                    _areaPoints.Add(new PointF(_serPoints[i + 1].X + half_dis, _serPoints[i + 1].Y));
+                                                    _areaPoints.Add(new PointF(_serPoints[i + 1].X + half_dis, _plotLowerPoint.Y));
+                                                    _areaPoints.Add(new PointF(_serPoints[i].X - half_dis, _plotLowerPoint.Y));
+                                                    g.FillPolygon(_areaBrush, _areaPoints.ToArray());
+                                                    g.DrawLine(_serLinePen, _serPoints[i].X - half_dis, _serPoints[i].Y, _serPoints[i].X + half_dis, _serPoints[i].Y);
+                                                    g.DrawLine(_serLinePen, _serPoints[i].X + half_dis, _serPoints[i].Y, _serPoints[i].X + half_dis, _serPoints[i + 1].Y);
+                                                    g.DrawLine(_serLinePen, _serPoints[i].X + half_dis, _serPoints[i + 1].Y, _serPoints[i + 1].X + half_dis, _serPoints[i + 1].Y);
+                                                }
+                                                else
+                                                    g.FillEllipse(_serEllipseBrush, _serPoints[i].X - 4 / _catSkipFactor[xa], _serPoints[i].Y - 4 / _catSkipFactor[xa], 8 / _catSkipFactor[xa], 8 / _catSkipFactor[xa]);
                                                 break;
                                         }
                                     }
@@ -354,8 +375,8 @@ namespace OpenCharts
                 int _bottomLineHeight = 4;
                 Pen _bottomLinePen = new Pen(xAxis[xa].BottomLineColor);
                 g.DrawLine(_bottomLinePen, _pointBottomLeft.X, _pointBottomLeft.Y + 24 * xa, _pointBottomRight.X, _pointBottomRight.Y + 24 * xa);
-                g.DrawLine(_bottomLinePen, _pointBottomLeft, new Point(_pointBottomLeft.X, _pointBottomLeft.Y + _bottomLineHeight));
-                g.DrawLine(_bottomLinePen, _pointBottomRight, new Point(_pointBottomRight.X, _pointBottomRight.Y + _bottomLineHeight));
+                g.DrawLine(_bottomLinePen, _pointBottomLeft.X, _pointBottomLeft.Y + 24 * xa, _pointBottomLeft.X, _pointBottomLeft.Y + 24 * xa + _bottomLineHeight);
+                g.DrawLine(_bottomLinePen, _pointBottomRight.X, _pointBottomLeft.Y + 24 * xa, _pointBottomRight.X, _pointBottomRight.Y + 24 * xa + _bottomLineHeight);
 
                 if (xAxis[xa].Categories != null)
                 {
@@ -404,12 +425,15 @@ namespace OpenCharts
                         g.FillRectangle(new SolidBrush(Color.Gray), _pointBottomLeft.X + 2 + tsw * ((float)_serCatOffset[xa] / ((float)xAxis[xa].Categories.Length - _catsVisible[xa] * _catSkipFactor[xa])), _pointBottomLeft.Y - 6 + 24 * xa, scrollwidth, 4);
                     }
                 }
-                if (_serScale[xa] > 1)
-                    g.DrawRectangle(Pens.LightGray, _pointBottomLeft.X - 12, _pointBottomLeft.Y - 8 + 24 * xa, 8, 8);
-                if (_serScrollingAxis == xa)
+                if (xAxis.Length > 1)
                 {
-                    g.DrawRectangle(Pens.LightGray, _pointBottomLeft.X - 12, _pointBottomLeft.Y - 8 + 24 * xa, 8, 8);
-                    g.FillRectangle(Brushes.LightGray, _pointBottomLeft.X - 10, _pointBottomLeft.Y - 6 + 24 * xa, 4, 4);
+                    if (_serScale[xa] > 1)
+                        g.DrawRectangle(Pens.LightGray, _pointBottomLeft.X - 12, _pointBottomLeft.Y - 8 + 24 * xa, 8, 8);
+                    if (_serScrollingAxis == xa)
+                    {
+                        g.DrawRectangle(Pens.LightGray, _pointBottomLeft.X - 12, _pointBottomLeft.Y - 8 + 24 * xa, 8, 8);
+                        g.FillRectangle(Brushes.LightGray, _pointBottomLeft.X - 10, _pointBottomLeft.Y - 6 + 24 * xa, 4, 4);
+                    }
                 }
             }
 
@@ -561,7 +585,8 @@ namespace OpenCharts
             if (e.Delta > 0)
             {
                 if (_catsVisible[_serScrollingAxis] < (xAxis[_serScrollingAxis].Categories.Length / (_serScale[_serScrollingAxis])))
-                    _serScale[_serScrollingAxis]++;
+                    if (_serScale[_serScrollingAxis] < xAxis[_serScrollingAxis].MaxZoom || xAxis[_serScrollingAxis].MaxZoom < 0)
+                        _serScale[_serScrollingAxis]++;
             }
             else
             {
@@ -729,6 +754,12 @@ namespace OpenCharts
             set { _CategoriesMinWidth = value; }
         }
 
+        private int _maxZoom = -1;
+        public int MaxZoom
+        {
+            get { return _maxZoom; }
+            set { _maxZoom = value; }
+        }
         // Bottom line.
         private Color _BottomLineColor = Color.FromArgb(0xC0, 0xD0, 0xE0);
         public Color BottomLineColor
@@ -884,7 +915,8 @@ namespace OpenCharts
         {
             Line,
             Column,
-            Area
+            Area,
+            AreaSolid // dunno.
         }
     }
     public class cSeries_Converter : TypeConverter
