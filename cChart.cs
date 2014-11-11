@@ -162,6 +162,7 @@ namespace OpenCharts
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
             int _catsWidth = _pointBottomRight.X - _pointBottomLeft.X; // Yep, cats.
+            if (_catsWidth < 0) _catsWidth = 0;
             float[] _widthPerCat = new float[xAxis.Length];
             _catsVisible = new int[xAxis.Length];
             _catSkipFactor = new float[xAxis.Length];
@@ -177,6 +178,7 @@ namespace OpenCharts
                 if (_widthPerCat[i] < xAxis[i].CategoriesMinWidth)
                 {
                     _catsVisible[i] = _catsWidth / xAxis[i].CategoriesMinWidth;
+                    if (_catsVisible[i] == 0) continue;
                     _widthPerCat[i] = _catsWidth / _catsVisible[i];
                     _catSkipFactor[i] = ((float)xAxis[i].Categories.Length) / (float)_catsVisible[i];
                     _catSkipFactor[i] /= _serScale[i];
@@ -301,6 +303,9 @@ namespace OpenCharts
                                             continue; // dunno.
                                         switch (Series[k].Type)
                                         {
+                                            case cSeries.eType.Point:
+                                                g.FillEllipse(_serEllipseBrush, _serPoints[i].X - 4 / _catSkipFactor[xa], _serPoints[i].Y - 4 / _catSkipFactor[xa], 8 / _catSkipFactor[xa], 8 / _catSkipFactor[xa]);
+                                                break;
                                             case cSeries.eType.Line:
                                                 g.FillEllipse(_serEllipseBrush, _serPoints[i].X - 4 / _catSkipFactor[xa], _serPoints[i].Y - 4 / _catSkipFactor[xa], 8 / _catSkipFactor[xa], 8 / _catSkipFactor[xa]);
                                                 if (i + 1 < _serPoints.Count && _serPoints[i + 1] != null)
@@ -913,6 +918,7 @@ namespace OpenCharts
         }
         public enum eType
         {
+            Point,
             Line,
             Column,
             Area,
