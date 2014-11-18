@@ -430,8 +430,8 @@ namespace OpenCharts
                     if (Series[i].Data == null)
                         continue;
                     if (Series[i].Color != Color.White)
-                        g.FillRectangle(new SolidBrush(Series[i].Color), legend_x - 24, legend_y + 2 + i * 24f, 12, 12);
-                    g.DrawString(Series[i].Name, Legend.Font, new SolidBrush(Legend.Color), new PointF(legend_x, legend_y + i * 24f));
+                        g.FillRectangle(new SolidBrush(Series[i].Color), legend_x - 24, legend_y + 2 + i * Legend.ItemDistance, 12, 12);
+                    g.DrawString(Series[i].Name, Legend.Font, new SolidBrush(Legend.Color), new PointF(legend_x, legend_y + i * Legend.ItemDistance));
                 }
             }
 
@@ -711,13 +711,34 @@ namespace OpenCharts
                 {
                     if (Series[i].Data == null)
                         continue;
-                    if (e.X > legend_x - 24 && e.X < legend_x - 12 && e.Y > legend_y + 2 + i * 24 && e.Y < legend_y + 2 + i * 24 + 12)
+                    if (e.X > legend_x - 24 && e.X < legend_x - 12 && e.Y > legend_y + 2 + i * Legend.ItemDistance && e.Y < legend_y + 2 + i * Legend.ItemDistance + 12)
                     {
                         ColorDialog cd = new ColorDialog();
                         if (cd.ShowDialog() == DialogResult.OK)
                         {
                             Series[i].Color = cd.Color;
                             Refresh();
+                        }
+                    }
+                    else
+                    {
+                        if (e.X > legend_x && e.X < legend_x + Series[i].Name.Length * 14 && e.Y > legend_y + i * Legend.ItemDistance && e.Y < legend_y + 2 + i * Legend.ItemDistance + Legend.Font.Height)
+                        {
+                            if (e.Button == System.Windows.Forms.MouseButtons.Left)
+                            {
+                                Series[i].Type++;
+                                if ((int)Series[i].Type >= Enum.GetNames(typeof(cSeries.eType)).Length)
+                                    Series[i].Type = (cSeries.eType)0;
+                                Refresh();
+                            }
+                            else
+                                if (e.Button == System.Windows.Forms.MouseButtons.Right)
+                                {
+                                    Series[i].Type--;
+                                    if ((int)Series[i].Type <= 0)
+                                        Series[i].Type = (cSeries.eType)(Enum.GetNames(typeof(cSeries.eType)).Length -1);
+                                    Refresh();
+                                }
                         }
                     }
                 }
@@ -1087,6 +1108,12 @@ namespace OpenCharts
         {
             get { return _color; }
             set { _color = value; }
+        }
+        private float _itemDistance = 24;
+        public float ItemDistance
+        {
+            get { return _itemDistance; }
+            set { _itemDistance = value; }
         }
     }
     public class cLegend_Converter : ExpandableObjectConverter
