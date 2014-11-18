@@ -429,6 +429,11 @@ namespace OpenCharts
                 {
                     if (Series[i].Data == null)
                         continue;
+                    float stringwidth = g.MeasureString(Series[i].Name, Legend.Font).Width;
+                    if (stringwidth + legend_x + _pointBottomRight_RightOffset > this.Width)
+                        legend_x = this.Width - _pointBottomRight_RightOffset - stringwidth;
+                    if (legend_x < _pointBottomLeft_LeftOffset)
+                        legend_x = _pointBottomLeft_LeftOffset;
                     if (Series[i].Color != Color.White)
                         g.FillRectangle(new SolidBrush(Series[i].Color), legend_x - 24, legend_y + 2 + i * Legend.ItemDistance, 12, 12);
                     g.DrawString(Series[i].Name, Legend.Font, new SolidBrush(Legend.Color), new PointF(legend_x, legend_y + i * Legend.ItemDistance));
