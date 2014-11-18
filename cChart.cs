@@ -125,6 +125,14 @@ namespace OpenCharts
             set { _seriesFont = value; }
         }
 
+        private cLegend _legend = new cLegend();
+        [Category("OpenCharts"), TypeConverter(typeof(cLegend_Converter))]
+        public cLegend Legend
+        {
+            get { return _legend; }
+            set { _legend = value; }
+        }
+
         #endregion
 
         // Paint tools.
@@ -269,6 +277,10 @@ namespace OpenCharts
 
                         for (int k = 0; k < Series.Length; k++)
                         {
+                            if (Series[k].Color != Color.White)
+                                _serPointColor = Series[k].Color;
+                            else
+                                Series[k].Color = _serPointColor;
                             if (Series[k].Data != null && xa == Series[k].xAxis)
                             {
                                 List<cSeries.Point> _serPoints = new List<cSeries.Point>();
@@ -306,8 +318,16 @@ namespace OpenCharts
                                             case cSeries.eType.Point:
                                                 g.FillEllipse(_serEllipseBrush, _serPoints[i].X - 4 / _catSkipFactor[xa], _serPoints[i].Y - 4 / _catSkipFactor[xa], 8 / _catSkipFactor[xa], 8 / _catSkipFactor[xa]);
                                                 break;
-                                            case cSeries.eType.Line:
+                                            case cSeries.eType.PointLine:
                                                 g.FillEllipse(_serEllipseBrush, _serPoints[i].X - 4 / _catSkipFactor[xa], _serPoints[i].Y - 4 / _catSkipFactor[xa], 8 / _catSkipFactor[xa], 8 / _catSkipFactor[xa]);
+                                                if (i + 1 < _serPoints.Count && _serPoints[i + 1] != null)
+                                                {
+                                                    if (_serPoints[i + 1].X > _pointBottomRight.X)
+                                                        continue; // dunno.
+                                                    g.DrawLine(_serLinePen, _serPoints[i].X, _serPoints[i].Y, _serPoints[i + 1].X, _serPoints[i + 1].Y);
+                                                }
+                                                break;
+                                            case cSeries.eType.Line:
                                                 if (i + 1 < _serPoints.Count && _serPoints[i + 1] != null)
                                                 {
                                                     if (_serPoints[i + 1].X > _pointBottomRight.X)
@@ -340,6 +360,8 @@ namespace OpenCharts
                                                 g.FillRectangle(_serEllipseBrush, _serPoints[i].X + (columnscount > 1 ? -columnwidth * columnscount / 2 + columnwidth * columnindex : 0), _serPoints[i].Y, columnwidth, _plotLowerPoint.Y - _serPoints[i].Y);
                                                 break;
                                             case cSeries.eType.Area:
+                                                if (i == 0)
+                                                    g.FillEllipse(_serEllipseBrush, _serPoints[i].X - 4 / _catSkipFactor[xa], _serPoints[i].Y - 4 / _catSkipFactor[xa], 8 / _catSkipFactor[xa], 8 / _catSkipFactor[xa]);
                                                 if (i + 1 < _serPoints.Count && _serPoints[i + 1] != null && i < _catsToCount[xa])
                                                 {
                                                     if (_serPoints[i + 1].X > _pointBottomRight.X)
@@ -373,8 +395,9 @@ namespace OpenCharts
                                                     g.DrawLine(_serLinePen, _serPoints[i].X + half_dis, _serPoints[i].Y, _serPoints[i].X + half_dis, _serPoints[i + 1].Y);
                                                     g.DrawLine(_serLinePen, _serPoints[i].X + half_dis, _serPoints[i + 1].Y, _serPoints[i + 1].X + half_dis, _serPoints[i + 1].Y);
                                                 }
-                                                else
-                                                    g.FillEllipse(_serEllipseBrush, _serPoints[i].X - 4 / _catSkipFactor[xa], _serPoints[i].Y - 4 / _catSkipFactor[xa], 8 / _catSkipFactor[xa], 8 / _catSkipFactor[xa]);
+                                                /* else
+                                                     g.FillEllipse(_serEllipseBrush, _serPoints[i].X - 4 / _catSkipFactor[xa], _serPoints[i].Y - 4 / _catSkipFactor[xa], 8 / _catSkipFactor[xa], 8 / _catSkipFactor[xa]);
+                                                 */
                                                 break;
                                         }
                                     }
@@ -393,6 +416,24 @@ namespace OpenCharts
                 }
             }
 
+            // Legend.
+            if (Legend.Enabled)
+            {
+                Legend.X_Percent = Legend.X_Percent > 1 ? 1 : Legend.X_Percent;
+                Legend.X_Percent = Legend.X_Percent < 0 ? 0 : Legend.X_Percent;
+                Legend.Y_Percent = Legend.Y_Percent > 1 ? 1 : Legend.Y_Percent;
+                Legend.Y_Percent = Legend.Y_Percent < 0 ? 0 : Legend.Y_Percent;
+                float legend_x = _pointBottomLeft.X + (_pointBottomRight.X - _pointBottomLeft.X) * Legend.X_Percent;
+                float legend_y = _plotUpperPoint.Y + (_pointBottomLeft.Y - _plotUpperPoint.Y) * Legend.Y_Percent;
+                for (int i = 0; i < Series.Length; i++)
+                {
+                    if (Series[i].Data == null)
+                        continue;
+                    if (Series[i].Color != Color.White)
+                        g.FillRectangle(new SolidBrush(Series[i].Color), legend_x - 24, legend_y + 2 + i * 24f, 12, 12);
+                    g.DrawString(Series[i].Name, Legend.Font, new SolidBrush(Legend.Color), new PointF(legend_x, legend_y + i * 24f));
+                }
+            }
 
             // Categories.
             for (int xa = 0; xa < xAxis.Length; xa++)
@@ -658,6 +699,29 @@ namespace OpenCharts
                 _serScrolling = eScrolling.None;
                 //_serScrollingAxis = -1;
             }
+            if (Legend.Enabled)
+            {
+                Legend.X_Percent = Legend.X_Percent > 1 ? 1 : Legend.X_Percent;
+                Legend.X_Percent = Legend.X_Percent < 0 ? 0 : Legend.X_Percent;
+                Legend.Y_Percent = Legend.Y_Percent > 1 ? 1 : Legend.Y_Percent;
+                Legend.Y_Percent = Legend.Y_Percent < 0 ? 0 : Legend.Y_Percent;
+                float legend_x = _pointBottomLeft.X + (_pointBottomRight.X - _pointBottomLeft.X) * Legend.X_Percent;
+                float legend_y = _plotUpperPoint.Y + (_pointBottomLeft.Y - _plotUpperPoint.Y) * Legend.Y_Percent;
+                for (int i = 0; i < Series.Length; i++)
+                {
+                    if (Series[i].Data == null)
+                        continue;
+                    if (e.X > legend_x - 24 && e.X < legend_x - 12 && e.Y > legend_y + 2 + i * 24 && e.Y < legend_y + 2 + i * 24 + 12)
+                    {
+                        ColorDialog cd = new ColorDialog();
+                        if (cd.ShowDialog() == DialogResult.OK)
+                        {
+                            Series[i].Color = cd.Color;
+                            Refresh();
+                        }
+                    }
+                }
+            }
         }
         protected override void OnMouseMove(MouseEventArgs e)
         {
@@ -795,7 +859,7 @@ namespace OpenCharts
             set { _BottomLineColor = value; }
         }
     }
-    public class cxAxis_Converter : ExpandableObjectConverter
+    public class cxAxis_Converter : TypeConverter
     {
         public override object ConvertTo(ITypeDescriptorContext context, System.Globalization.CultureInfo culture, object value, Type destinationType)
         {
@@ -864,7 +928,7 @@ namespace OpenCharts
                 get { return _Text; }
                 set { _Text = value; }
             }
-            private Font _Font = new Font("Consolas", 12, FontStyle.Bold);
+            private Font _Font = new Font("Georgia", 10, FontStyle.Bold);
             public Font Font
             {
                 get { return _Font; }
@@ -914,7 +978,7 @@ namespace OpenCharts
             get { return _Data; }
             set { _Data = value; }
         }
-        private eType _Type = eType.Line;
+        private eType _Type = eType.PointLine;
         public eType Type
         {
             get { return _Type; }
@@ -925,6 +989,12 @@ namespace OpenCharts
         {
             get { return _xAxis; }
             set { _xAxis = value; }
+        }
+        private Color _Color = Color.White;
+        public Color Color
+        {
+            get { return _Color; }
+            set { _Color = value; }
         }
 
         public class Point
@@ -941,6 +1011,7 @@ namespace OpenCharts
         public enum eType
         {
             Point,
+            PointLine,
             Line,
             LineSolid,
             Spline,
@@ -983,5 +1054,46 @@ namespace OpenCharts
         public Color Color = Color.White;
         public float Width = 104;
         public float Height = 32;
+    }
+
+    public class cLegend
+    {
+        private float _x = .8f;
+        public float X_Percent
+        {
+            get { return _x; }
+            set { _x = value; }
+        }
+        private float _y = .1f;
+        public float Y_Percent
+        {
+            get { return _y; }
+            set { _y = value; }
+        }
+        private bool _enabled = false;
+        public bool Enabled
+        {
+            get { return _enabled; }
+            set { _enabled = value; }
+        }
+        private Font _font = new Font("Georgia", 10, FontStyle.Bold);
+        public Font Font
+        {
+            get { return _font; }
+            set { _font = value; }
+        }
+        private Color _color = Color.FromArgb(50, 50, 50);
+        public Color Color
+        {
+            get { return _color; }
+            set { _color = value; }
+        }
+    }
+    public class cLegend_Converter : ExpandableObjectConverter
+    {
+        public override object ConvertTo(ITypeDescriptorContext context, System.Globalization.CultureInfo culture, object value, Type destinationType)
+        {
+            return ((cLegend)value).X_Percent.ToString() + "; " + ((cLegend)value).Y_Percent.ToString();
+        }
     }
 }
