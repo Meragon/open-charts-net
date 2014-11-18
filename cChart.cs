@@ -315,6 +315,27 @@ namespace OpenCharts
                                                     g.DrawLine(_serLinePen, _serPoints[i].X, _serPoints[i].Y, _serPoints[i + 1].X, _serPoints[i + 1].Y);
                                                 }
                                                 break;
+                                            case cSeries.eType.LineSolid:
+                                                if (i + 1 < _serPoints.Count && _serPoints[i + 1] != null && i < _catsToCount[xa])
+                                                {
+                                                    if (_serPoints[i + 1].X > _pointBottomRight.X)
+                                                        continue; // dunno.
+                                                    float half_dis = (_serPoints[i + 1].X - _serPoints[i].X) / 2;
+                                                    g.DrawLine(_serLinePen, _serPoints[i].X - half_dis, _serPoints[i].Y, _serPoints[i].X + half_dis, _serPoints[i].Y);
+                                                    g.DrawLine(_serLinePen, _serPoints[i].X + half_dis, _serPoints[i].Y, _serPoints[i].X + half_dis, _serPoints[i + 1].Y);
+                                                    g.DrawLine(_serLinePen, _serPoints[i].X + half_dis, _serPoints[i + 1].Y, _serPoints[i + 1].X + half_dis, _serPoints[i + 1].Y);
+                                                }
+                                                else
+                                                    g.FillEllipse(_serEllipseBrush, _serPoints[i].X - 4 / _catSkipFactor[xa], _serPoints[i].Y - 4 / _catSkipFactor[xa], 8 / _catSkipFactor[xa], 8 / _catSkipFactor[xa]);
+                                                break;
+                                            case cSeries.eType.Spline:
+                                                List<PointF> _curvePoints = new List<PointF>();
+                                                foreach (var p in _serPoints)
+                                                    if (p != null && p.X <= _pointBottomRight.X)
+                                                        _curvePoints.Add(new PointF(p.X, p.Y));
+                                                g.DrawCurve(_serLinePen, _curvePoints.ToArray());
+                                                i = _serPoints.Count;
+                                                break;
                                             case cSeries.eType.Column:
                                                 g.FillRectangle(_serEllipseBrush, _serPoints[i].X + (columnscount > 1 ? -columnwidth * columnscount / 2 + columnwidth * columnindex : 0), _serPoints[i].Y, columnwidth, _plotLowerPoint.Y - _serPoints[i].Y);
                                                 break;
@@ -589,9 +610,10 @@ namespace OpenCharts
             base.OnMouseWheel(e);
             if (e.Delta > 0)
             {
-                if (_catsVisible[_serScrollingAxis] < (xAxis[_serScrollingAxis].Categories.Length / (_serScale[_serScrollingAxis])))
-                    if (_serScale[_serScrollingAxis] < xAxis[_serScrollingAxis].MaxZoom || xAxis[_serScrollingAxis].MaxZoom < 0)
-                        _serScale[_serScrollingAxis]++;
+                if (xAxis[_serScrollingAxis].Categories != null)
+                    if (_catsVisible[_serScrollingAxis] < (xAxis[_serScrollingAxis].Categories.Length / (_serScale[_serScrollingAxis])))
+                        if (_serScale[_serScrollingAxis] < xAxis[_serScrollingAxis].MaxZoom || xAxis[_serScrollingAxis].MaxZoom < 0)
+                            _serScale[_serScrollingAxis]++;
             }
             else
             {
@@ -920,9 +942,11 @@ namespace OpenCharts
         {
             Point,
             Line,
+            LineSolid,
+            Spline,
             Column,
             Area,
-            AreaSolid // dunno.
+            AreaSolid, // dunno.
         }
     }
     public class cSeries_Converter : TypeConverter
