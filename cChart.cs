@@ -108,7 +108,34 @@ namespace OpenCharts
                 _Series = value;
                 _seriesSorted = new List<cSeries>();
                 for (int i = 0; i < Series.Length; i++)
+                {
                     _seriesSorted.Add(Series[i]);
+                    Series[i].DataUpdated += delegate
+                    {
+                        // Set upper && lower limits.
+                        _upperLimit = 0;
+                        _lowerLimit = 0;
+                        foreach (var _ser in Series)
+                            if (_ser.Data != null)
+                                foreach (string _data in _ser.Data)
+                                {
+                                    double _ddata = 0;
+                                    if (double.TryParse(_data, out _ddata))
+                                    {
+                                        if (_ddata > _upperLimit)
+                                            _upperLimit = (float)_ddata;
+                                        if (_ddata < _lowerLimit)
+                                            _lowerLimit = (float)_ddata;
+                                    }
+                                }
+                        _upperLimit += _upperLimit * .1f;
+                        if (_lowerLimit < 0)
+                            _lowerLimit += _lowerLimit * .1f;
+                        else
+                            _lowerLimit += _lowerLimit / .1f;
+                    };
+                }
+                // zIndex sort.
                 if (_seriesSorted.FindIndex(x => x.zIndex > -1) > -1)
                     _seriesSorted.Sort(delegate(cSeries x, cSeries y)
                     {
@@ -116,6 +143,7 @@ namespace OpenCharts
                         if (x.zIndex == y.zIndex) return -1;
                         return x.zIndex.CompareTo(y.zIndex);
                     });
+
             }
         }
 
@@ -157,6 +185,8 @@ namespace OpenCharts
 
         #endregion
 
+        private float _upperLimit = 0;
+        private float _lowerLimit = 0;
         // Paint tools.
         private float[] _serScale;
         private float[] _serCatOffset;
@@ -240,30 +270,6 @@ namespace OpenCharts
             // Series.
             if (_Series != null && _Series.Length > 0)
             {
-                // Set upper && lower limits.
-                float _upperLimit = 0;
-                float _lowerLimit = 0;
-                foreach (cSeries _ser in Series)
-                {
-                    if (_ser.Data != null)
-                        foreach (string _data in _ser.Data)
-                        {
-                            double _ddata = 0;
-                            if (double.TryParse(_data, out _ddata))
-                            {
-                                if (_ddata > _upperLimit)
-                                    _upperLimit = (float)_ddata;
-                                if (_ddata < _lowerLimit)
-                                    _lowerLimit = (float)_ddata;
-                            }
-                        }
-                }
-                _upperLimit += _upperLimit * .1f;
-                if (_lowerLimit < 0)
-                    _lowerLimit += _lowerLimit * .1f;
-                else
-                    _lowerLimit += _lowerLimit / .1f;
-
                 float _pixelsPerPoint = (_plotLowerPoint.Y - _plotUpperPoint.Y) / (_upperLimit - _lowerLimit);
 
                 // Draw grid.
@@ -386,7 +392,7 @@ namespace OpenCharts
                                                 i = _serPoints.Count;
                                                 break;
                                             case cSeries.eType.Column:
-                                                g.FillRectangle(_serEllipseBrush, _serPoints[i].X + (columnscount > 1 ? -columnwidth * columnscount / 2 + columnwidth * columnindex : 0), _serPoints[i].Y, columnwidth, _plotLowerPoint.Y - _serPoints[i].Y);
+                                                g.FillRectangle(_serEllipseBrush, _serPoints[i].X + (columnscount > 1 ? -columnwidth * columnscount / 2 + columnwidth * columnindex : -columnwidth/2), _serPoints[i].Y, columnwidth, _plotLowerPoint.Y - _serPoints[i].Y);
                                                 break;
                                             case cSeries.eType.Area:
                                                 if (i == 0)
@@ -555,9 +561,9 @@ namespace OpenCharts
                 g.DrawRectangle(_plotBorderPen, _plotUpperPoint.X, _plotUpperPoint.Y, _pointBottomRight.X - _plotUpperPoint.X, _plotLowerPoint.Y - _plotUpperPoint.Y);
             }
             watch.Stop();
-            // Paint speed for debug.
+            // Paint refresh rate for debug.
             if (Debug)
-                g.DrawString(watch.ElapsedMilliseconds.ToString() + " ms", Legend.Font, Brushes.DarkGray, 8, 8);
+                g.DrawString(watch.Elapsed.TotalMilliseconds.ToString("0.0") + " ms", Legend.Font, Brushes.DarkGray, 8, 8);
         }
         protected override void OnMouseClick(MouseEventArgs e)
         {
