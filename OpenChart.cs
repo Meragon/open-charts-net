@@ -369,7 +369,8 @@ namespace OpenCharts
                                 if (_seriesSorted[k].FillGradient &&
                                     (_seriesSorted[k].Type == cSeries.eType.Area ||
                                      _seriesSorted[k].Type == cSeries.eType.AreaSolid ||
-                                     _seriesSorted[k].Type == cSeries.eType.Column))
+                                     _seriesSorted[k].Type == cSeries.eType.Column || 
+                                     _seriesSorted[k].Type == cSeries.eType.AreaSpline))
                                 {
                                     _texForBrush = new Bitmap((int)_pixelsPerPoint + 1, (int)this.Height);
                                     for (int _tfbx = 0; _tfbx < _texForBrush.Width; _tfbx++)
@@ -444,12 +445,14 @@ namespace OpenCharts
                                                 }
                                                 break;
                                             case cSeries.eType.Spline:
-                                                List<PointF> _curvePoints = new List<PointF>();
-                                                foreach (var p in _serPoints)
-                                                    if (p != null && p.X <= _pointBottomRight.X)
-                                                        _curvePoints.Add(new PointF(p.X, p.Y));
-                                                g.DrawCurve(_serLinePen, _curvePoints.ToArray());
-                                                i = _serPoints.Count;
+                                                {
+                                                    List<PointF> _curvePoints = new List<PointF>();
+                                                    foreach (var p in _serPoints)
+                                                        if (p != null && p.X <= _pointBottomRight.X)
+                                                            _curvePoints.Add(new PointF(p.X, p.Y));
+                                                    g.DrawCurve(_serLinePen, _curvePoints.ToArray());
+                                                    i = _serPoints.Count;
+                                                }
                                                 break;
                                             case cSeries.eType.Column:
                                                 if (!_seriesSorted[k].FillGradient)
@@ -499,6 +502,33 @@ namespace OpenCharts
                                                     g.DrawLine(_serLinePen, _serPoints[i].X - (i == 0 ? half_dis : 0), _serPoints[i].Y, _serPoints[i].X + half_dis, _serPoints[i].Y);
                                                     g.DrawLine(_serLinePen, _serPoints[i].X + half_dis, _serPoints[i].Y, _serPoints[i].X + half_dis, _serPoints[i + 1].Y);
                                                     g.DrawLine(_serLinePen, _serPoints[i].X + half_dis, _serPoints[i + 1].Y, _serPoints[i + 1].X + (i + 2 == _serPoints.Count ? half_dis : 0), _serPoints[i + 1].Y);
+                                                }
+                                                break;
+                                            case cSeries.eType.AreaSpline:
+                                                {
+                                                    List<PointF> _curvePoints = new List<PointF>();
+                                                    foreach (var p in _serPoints)
+                                                        if (p != null && p.X <= _pointBottomRight.X)
+                                                            _curvePoints.Add(new PointF(p.X, p.Y));
+
+                                                    i = _serPoints.Count;
+                                                    System.Drawing.Drawing2D.GraphicsPath path = new System.Drawing.Drawing2D.GraphicsPath();
+                                                    path.AddCurve(_curvePoints.ToArray());
+                                                    if (_curvePoints.Count > 0)
+                                                    {
+                                                        PointF firstPoint = new PointF(_curvePoints[0].X, _curvePoints[0].Y);
+                                                        PointF lastPoint = new PointF(_curvePoints[_curvePoints.Count - 1].X, _curvePoints[_curvePoints.Count - 1].Y);
+                                                        path.AddLine(lastPoint.X, lastPoint.Y, lastPoint.X, _plotLowerPoint.Y);
+                                                        path.AddLine(lastPoint.X, _plotLowerPoint.Y, firstPoint.X, _plotLowerPoint.Y);
+                                                        path.AddLine(firstPoint.X, _plotLowerPoint.Y, firstPoint.X, firstPoint.Y);
+                                                        if (!_seriesSorted[k].FillGradient)
+                                                            g.FillPath(_areaBrush, path);
+                                                        else
+                                                            g.FillPath(_tbrush, path);
+                                                        g.DrawCurve(_serLinePen, _curvePoints.ToArray());
+                                                        //g.DrawLine(_serLinePen, lastPoint.X, lastPoint.Y, lastPoint.X, _plotLowerPoint.Y);
+                                                        //g.DrawLine(_serLinePen, firstPoint.X, _plotLowerPoint.Y, firstPoint.X, firstPoint.Y);
+                                                    }
                                                 }
                                                 break;
                                         }
@@ -1205,6 +1235,7 @@ namespace OpenCharts
             Column,
             Area,
             AreaSolid, // dunno.
+            AreaSpline,
         }
     }
     public class cSeries_Converter : TypeConverter
