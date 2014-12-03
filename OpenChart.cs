@@ -364,15 +364,24 @@ namespace OpenCharts
                                 int aa = 100;
                                 SolidBrush _areaBrush = new SolidBrush(Color.FromArgb(aa, ar, ag, ab));
                                 // Slow.
-                                Bitmap _texForBrush = new Bitmap(32, (int)this.Height);
-                                if (_seriesSorted[k].FillGradient)
+                                Bitmap _texForBrush = new Bitmap(1, 1);
+                                TextureBrush _tbrush = new TextureBrush(_texForBrush);
+                                if (_seriesSorted[k].FillGradient &&
+                                    (_seriesSorted[k].Type == cSeries.eType.Area ||
+                                     _seriesSorted[k].Type == cSeries.eType.AreaSolid ||
+                                     _seriesSorted[k].Type == cSeries.eType.Column))
+                                {
+                                    _texForBrush = new Bitmap((int)_pixelsPerPoint + 1, (int)this.Height);
                                     for (int _tfbx = 0; _tfbx < _texForBrush.Width; _tfbx++)
                                         for (int _tfby = 0; _tfby < _texForBrush.Height; _tfby++)
                                         {
+                                            int _tfba = 250 - (int)(((float)256 / (_texForBrush.Height)) * _tfby);
+                                            _tfba = _tfba < 0 ? 0 : _tfba;
                                             _texForBrush.SetPixel(_tfbx, _tfby,
-                                                Color.FromArgb(255 - (int)(((float)256 / _texForBrush.Height) * _tfby), _areaBrush.Color.R, _areaBrush.Color.G, _areaBrush.Color.B));
+                                                Color.FromArgb(_tfba, _serEllipseBrush.Color.R, _serEllipseBrush.Color.G, _serEllipseBrush.Color.B));
                                         }
-                                TextureBrush _tbrush = new TextureBrush(_texForBrush);
+                                    _tbrush = new TextureBrush(_texForBrush);
+                                }
 
                                 Pen _serLinePen = new Pen(_seriesSorted[k].Color);
                                 _serLinePen.Width = 2 / _catSkipFactor[xa];
@@ -443,7 +452,10 @@ namespace OpenCharts
                                                 i = _serPoints.Count;
                                                 break;
                                             case cSeries.eType.Column:
-                                                g.FillRectangle(_serEllipseBrush, _serPoints[i].X + (columnscount > 1 ? -columnwidth * columnscount / 2 + columnwidth * columnindex : -columnwidth / 2), _serPoints[i].Y, columnwidth, _plotLowerPoint.Y - _serPoints[i].Y);
+                                                if (!_seriesSorted[k].FillGradient)
+                                                    g.FillRectangle(_serEllipseBrush, _serPoints[i].X + (columnscount > 1 ? -columnwidth * columnscount / 2 + columnwidth * columnindex : -columnwidth / 2), _serPoints[i].Y, columnwidth, _plotLowerPoint.Y - _serPoints[i].Y);
+                                                else
+                                                    g.FillRectangle(_tbrush, _serPoints[i].X + (columnscount > 1 ? -columnwidth * columnscount / 2 + columnwidth * columnindex : -columnwidth / 2), _serPoints[i].Y, columnwidth, _plotLowerPoint.Y - _serPoints[i].Y);
                                                 break;
                                             case cSeries.eType.Area:
                                                 if (i == 0)
@@ -477,8 +489,8 @@ namespace OpenCharts
                                                     _areaPoints.Add(new PointF(_serPoints[i].X - (i == 0 ? half_dis : 0), _serPoints[i].Y));
                                                     _areaPoints.Add(new PointF(_serPoints[i].X + half_dis, _serPoints[i].Y));
                                                     _areaPoints.Add(new PointF(_serPoints[i].X + half_dis, _serPoints[i + 1].Y));
-                                                    _areaPoints.Add(new PointF(_serPoints[i + 1].X + (i + 2 == _serPoints.Count ? half_dis : 0), _serPoints[i + 1].Y));
-                                                    _areaPoints.Add(new PointF(_serPoints[i + 1].X + (i + 2 == _serPoints.Count ? half_dis : 0), _plotLowerPoint.Y));
+                                                    _areaPoints.Add(new PointF(_serPoints[i + 1].X + (i + 2 == _serPoints.Count ? half_dis : 0) + .05f, _serPoints[i + 1].Y));
+                                                    _areaPoints.Add(new PointF(_serPoints[i + 1].X + (i + 2 == _serPoints.Count ? half_dis : 0) + .05f, _plotLowerPoint.Y));
                                                     _areaPoints.Add(new PointF(_serPoints[i].X - (i == 0 ? half_dis : 0), _plotLowerPoint.Y));
                                                     if (!_seriesSorted[k].FillGradient)
                                                         g.FillPolygon(_areaBrush, _areaPoints.ToArray());
@@ -582,7 +594,13 @@ namespace OpenCharts
                         float tsw = scrollbarwidth - scrollwidth - 4;
 
                         g.DrawRectangle(Pens.LightGray, _pointBottomLeft.X, _pointBottomLeft.Y - 8 + 24 * xaxis_todraw, scrollbarwidth, 8);
-                        g.FillRectangle(new SolidBrush(Color.Gray), _pointBottomLeft.X + 2 + tsw * ((float)_serCatOffset[xa] / ((float)xAxis[xa].Categories.Length - _catsVisible[xa] * _catSkipFactor[xa])), _pointBottomLeft.Y - 6 + 24 * xaxis_todraw, scrollwidth, 4);
+                        float _scrollbarStartX = _pointBottomLeft.X + 2 + tsw * ((float)_serCatOffset[xa] / ((float)xAxis[xa].Categories.Length - _catsVisible[xa] * _catSkipFactor[xa]));
+                        float _scrollbarStartY = _pointBottomLeft.Y - 6 + 24 * xaxis_todraw;
+                        g.FillRectangle(Brushes.Gray, _scrollbarStartX, _scrollbarStartY, scrollwidth, 4);
+                        g.DrawRectangle(new Pen(Color.FromArgb(50, 50, 50)), _scrollbarStartX, _scrollbarStartY, scrollwidth, 4);
+                        g.DrawLine(Pens.LightGray, _scrollbarStartX + scrollwidth / 2, _scrollbarStartY + 1, _scrollbarStartX + scrollwidth / 2, _scrollbarStartY + 3);
+                        g.DrawLine(Pens.LightGray, _scrollbarStartX + scrollwidth / 2 - 3, _scrollbarStartY + 1, _scrollbarStartX + scrollwidth / 2 - 3, _scrollbarStartY + 3);
+                        g.DrawLine(Pens.LightGray, _scrollbarStartX + scrollwidth / 2 + 3, _scrollbarStartY + 1, _scrollbarStartX + scrollwidth / 2 + 3, _scrollbarStartY + 3);
                     }
                 }
                 if (xAxis.Length > 1)
@@ -600,7 +618,7 @@ namespace OpenCharts
 
             // Zoom value.
             if (_serScale[_serScrollingAxis] > 1)
-                g.DrawString((_serScale[_serScrollingAxis] * 100).ToString() + "%", new Font("Segoe UI", 10), new SolidBrush(Color.Gray), this.Width - 48, 8);
+                g.DrawString((_serScale[_serScrollingAxis] * 100).ToString() + "%", new Font("Segoe UI", 10), new SolidBrush(Color.Gray), this.Width - 64, 8);
 
             // Borders (chart + plot).
             if (BorderWidth > 0)
