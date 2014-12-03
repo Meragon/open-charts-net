@@ -7,9 +7,9 @@ using System.Windows.Forms;
 
 namespace OpenCharts
 {
-    public partial class cChart : UserControl
+    public partial class OpenChart : UserControl
     {
-        public cChart()
+        public OpenChart()
         {
             InitializeComponent();
 
@@ -17,6 +17,7 @@ namespace OpenCharts
             SetStyle(ControlStyles.ResizeRedraw, true);
             SetStyle(ControlStyles.AllPaintingInWmPaint, true);
             SetStyle(ControlStyles.UserPaint, true);
+            SetStyle(ControlStyles.SupportsTransparentBackColor, true);
 
             _pointTooltip.OwnerDraw = true;
             _pointTooltip.Draw += _pointTooltip_Draw;
@@ -107,6 +108,8 @@ namespace OpenCharts
             {
                 _Series = value;
                 _seriesSorted = new List<cSeries>();
+                if (value == null)
+                    return;
                 for (int i = 0; i < Series.Length; i++)
                 {
                     _seriesSorted.Add(Series[i]);
@@ -370,6 +373,17 @@ namespace OpenCharts
                                                     g.DrawLine(_serLinePen, _serPoints[i].X, _serPoints[i].Y, _serPoints[i + 1].X, _serPoints[i + 1].Y);
                                                 }
                                                 break;
+                                            case cSeries.eType.LineShadowed:
+                                                if (i + 1 < _serPoints.Count && _serPoints[i + 1] != null)
+                                                {
+                                                    if (_serPoints[i + 1].X > _pointBottomRight.X)
+                                                        continue; // dunno.
+                                                    Pen pline = new Pen(Color.LightGray);
+                                                    pline.Width = 2 * _serScale[xa];
+                                                    g.DrawLine(pline, _serPoints[i].X + 1f * _serScale[xa], _serPoints[i].Y + 1f * _serScale[xa], _serPoints[i + 1].X + 1f * _serScale[xa], _serPoints[i + 1].Y + 1f * _serScale[xa]);
+                                                    g.DrawLine(_serLinePen, _serPoints[i].X, _serPoints[i].Y, _serPoints[i + 1].X, _serPoints[i + 1].Y);
+                                                }
+                                                break;
                                             case cSeries.eType.LineSolid:
                                                 if (i + 1 < _serPoints.Count && i < _catsToCount[xa])
                                                 {
@@ -385,7 +399,7 @@ namespace OpenCharts
                                                         g.DrawLine(_serLinePen, _serPoints[i].X + half_dis, _serPoints[i + 1].Y, _serPoints[i + 1].X + half_dis, _serPoints[i + 1].Y);
                                                     }
                                                 }
-                                                    break;
+                                                break;
                                             case cSeries.eType.Spline:
                                                 List<PointF> _curvePoints = new List<PointF>();
                                                 foreach (var p in _serPoints)
@@ -395,7 +409,7 @@ namespace OpenCharts
                                                 i = _serPoints.Count;
                                                 break;
                                             case cSeries.eType.Column:
-                                                g.FillRectangle(_serEllipseBrush, _serPoints[i].X + (columnscount > 1 ? -columnwidth * columnscount / 2 + columnwidth * columnindex : -columnwidth/2), _serPoints[i].Y, columnwidth, _plotLowerPoint.Y - _serPoints[i].Y);
+                                                g.FillRectangle(_serEllipseBrush, _serPoints[i].X + (columnscount > 1 ? -columnwidth * columnscount / 2 + columnwidth * columnindex : -columnwidth / 2), _serPoints[i].Y, columnwidth, _plotLowerPoint.Y - _serPoints[i].Y);
                                                 break;
                                             case cSeries.eType.Area:
                                                 if (i == 0)
@@ -473,7 +487,7 @@ namespace OpenCharts
             int xaxis_todraw = 0;
             for (int xa = 0; xa < xAxis.Length; xa++)
             {
-                if (xAxis[xa].Categories == null)
+                if (xAxis[xa].Categories == null || !xAxis[xa].Visible)
                     continue;
                 // Bottom line.
                 int _bottomLineHeight = 4;
@@ -859,13 +873,25 @@ namespace OpenCharts
         {
             int xaxis_todraw = 0;
             for (int i = 0; i < xAxis.Length; i++)
-                if (xAxis[i].Categories != null)
+                if (xAxis[i].Categories != null && xAxis[i].Visible)
                     xaxis_todraw++;
-            _pointBottomLeft = new Point(_pointBottomLeft_LeftOffset, this.Height - _pointBottomLeft_BottomOffset - 24 * xaxis_todraw);
-            _pointBottomRight = new Point(this.Width - _pointBottomRight_RightOffset, this.Height - _pointBottomRight_BottomOffset - 24 * xaxis_todraw);
+            int _px = (yAxis.Title.Text != String.Empty || yAxis.GridValuesShow ? _pointBottomLeft_LeftOffset : 0);
+            if (xaxis_todraw > 0)
+            {
+                _pointBottomLeft = new Point(0, this.Height - _pointBottomLeft_BottomOffset - 24 * xaxis_todraw);
+                _pointBottomRight = new Point(this.Width - _px, this.Height - _pointBottomRight_BottomOffset - 24 * xaxis_todraw);
+                _plotUpperPoint = new PointF(_px, 8);
+                _plotLowerPoint = new PointF(_px, _pointBottomLeft.Y - _seriesFont.Height);
+            }
+            else
+            {
+                _pointBottomLeft = new Point(_px, this.Height);
+                _pointBottomRight = new Point(this.Width - _px - 1, this.Height);
+                _plotUpperPoint = new PointF(_px, 0);
+                _plotLowerPoint = new PointF(_px, _pointBottomLeft.Y - 1);
+            }
 
-            _plotUpperPoint = new PointF(_pointBottomLeft_LeftOffset, 32);
-            _plotLowerPoint = new PointF(_pointBottomLeft_LeftOffset, _pointBottomLeft.Y - _seriesFont.Height);
+            
         }
         private string _TransformNumberToShort(float number)
         {
@@ -932,6 +958,14 @@ namespace OpenCharts
             get { return _BottomLineColor; }
             set { _BottomLineColor = value; }
         }
+
+        private bool _visible = true;
+        public bool Visible
+        {
+            get { return _visible; }
+            set { _visible = value; }
+        }
+
     }
     public class cxAxis_Converter : TypeConverter
     {
@@ -1100,6 +1134,7 @@ namespace OpenCharts
             Point,
             PointLine,
             Line,
+            LineShadowed,
             LineSolid,
             Spline,
             Column,

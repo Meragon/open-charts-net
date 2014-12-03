@@ -1,6 +1,6 @@
 ﻿namespace OpenCharts
 {
-    partial class cChart
+    partial class OpenChart
     {
         /// <summary> 
         /// Требуется переменная конструктора.
