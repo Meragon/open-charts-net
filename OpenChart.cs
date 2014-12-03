@@ -271,6 +271,30 @@ namespace OpenCharts
             Color _tooltipColor = Color.White;
 
             // Series.
+            if (_upperLimit == 0 && _lowerLimit == 0)
+            {
+                _upperLimit = 0;
+                _lowerLimit = 0;
+                foreach (var _ser in Series)
+                    if (_ser.Data != null)
+                        foreach (string _data in _ser.Data)
+                        {
+                            double _ddata = 0;
+                            if (double.TryParse(_data, out _ddata))
+                            {
+                                if (_ddata > _upperLimit)
+                                    _upperLimit = (float)_ddata;
+                                if (_ddata < _lowerLimit)
+                                    _lowerLimit = (float)_ddata;
+                            }
+                        }
+                _upperLimit += _upperLimit * .1f;
+                if (_lowerLimit < 0)
+                    _lowerLimit += _lowerLimit * .1f;
+                else
+                    _lowerLimit += _lowerLimit / .1f;
+            }
+
             if (_Series != null && _Series.Length > 0)
             {
                 float _pixelsPerPoint = (_plotLowerPoint.Y - _plotUpperPoint.Y) / (_upperLimit - _lowerLimit);
@@ -339,6 +363,16 @@ namespace OpenCharts
                                 int ab = _seriesSorted[k].Color.B; ab = ab < 200 ? ab + 50 : 250;
                                 int aa = 100;
                                 SolidBrush _areaBrush = new SolidBrush(Color.FromArgb(aa, ar, ag, ab));
+                                // Slow.
+                                Bitmap _texForBrush = new Bitmap(32, (int)this.Height);
+                                if (_seriesSorted[k].FillGradient)
+                                    for (int _tfbx = 0; _tfbx < _texForBrush.Width; _tfbx++)
+                                        for (int _tfby = 0; _tfby < _texForBrush.Height; _tfby++)
+                                        {
+                                            _texForBrush.SetPixel(_tfbx, _tfby,
+                                                Color.FromArgb(255 - (int)(((float)256 / _texForBrush.Height) * _tfby), _areaBrush.Color.R, _areaBrush.Color.G, _areaBrush.Color.B));
+                                        }
+                                TextureBrush _tbrush = new TextureBrush(_texForBrush);
 
                                 Pen _serLinePen = new Pen(_seriesSorted[k].Color);
                                 _serLinePen.Width = 2 / _catSkipFactor[xa];
@@ -418,12 +452,16 @@ namespace OpenCharts
                                                 {
                                                     if (_serPoints[i + 1].X > _pointBottomRight.X)
                                                         continue; // dunno.
+
                                                     List<PointF> _areaPoints = new List<PointF>();
                                                     _areaPoints.Add(new PointF(_serPoints[i].X, _serPoints[i].Y));
                                                     _areaPoints.Add(new PointF(_serPoints[i + 1].X, _serPoints[i + 1].Y));
                                                     _areaPoints.Add(new PointF(_serPoints[i + 1].X, _plotLowerPoint.Y));
                                                     _areaPoints.Add(new PointF(_serPoints[i].X, _plotLowerPoint.Y));
-                                                    g.FillPolygon(_areaBrush, _areaPoints.ToArray());
+                                                    if (!_seriesSorted[k].FillGradient)
+                                                        g.FillPolygon(_areaBrush, _areaPoints.ToArray());
+                                                    else
+                                                        g.FillPolygon(_tbrush, _areaPoints.ToArray());
                                                     g.DrawLine(_serLinePen, _serPoints[i].X, _serPoints[i].Y, _serPoints[i + 1].X, _serPoints[i + 1].Y);
                                                 }
                                                 else
@@ -442,7 +480,10 @@ namespace OpenCharts
                                                     _areaPoints.Add(new PointF(_serPoints[i + 1].X + (i + 2 == _serPoints.Count ? half_dis : 0), _serPoints[i + 1].Y));
                                                     _areaPoints.Add(new PointF(_serPoints[i + 1].X + (i + 2 == _serPoints.Count ? half_dis : 0), _plotLowerPoint.Y));
                                                     _areaPoints.Add(new PointF(_serPoints[i].X - (i == 0 ? half_dis : 0), _plotLowerPoint.Y));
-                                                    g.FillPolygon(_areaBrush, _areaPoints.ToArray());
+                                                    if (!_seriesSorted[k].FillGradient)
+                                                        g.FillPolygon(_areaBrush, _areaPoints.ToArray());
+                                                    else
+                                                        g.FillPolygon(_tbrush, _areaPoints.ToArray());
                                                     g.DrawLine(_serLinePen, _serPoints[i].X - (i == 0 ? half_dis : 0), _serPoints[i].Y, _serPoints[i].X + half_dis, _serPoints[i].Y);
                                                     g.DrawLine(_serLinePen, _serPoints[i].X + half_dis, _serPoints[i].Y, _serPoints[i].X + half_dis, _serPoints[i + 1].Y);
                                                     g.DrawLine(_serLinePen, _serPoints[i].X + half_dis, _serPoints[i + 1].Y, _serPoints[i + 1].X + (i + 2 == _serPoints.Count ? half_dis : 0), _serPoints[i + 1].Y);
@@ -878,8 +919,8 @@ namespace OpenCharts
             int _px = (yAxis.Title.Text != String.Empty || yAxis.GridValuesShow ? _pointBottomLeft_LeftOffset : 0);
             if (xaxis_todraw > 0)
             {
-                _pointBottomLeft = new Point(0, this.Height - _pointBottomLeft_BottomOffset - 24 * xaxis_todraw);
-                _pointBottomRight = new Point(this.Width - _px, this.Height - _pointBottomRight_BottomOffset - 24 * xaxis_todraw);
+                _pointBottomLeft = new Point(_px, this.Height - _pointBottomLeft_BottomOffset - 24 * xaxis_todraw);
+                _pointBottomRight = new Point(this.Width - _pointBottomRight_RightOffset, this.Height - _pointBottomRight_BottomOffset - 24 * xaxis_todraw);
                 _plotUpperPoint = new PointF(_px, 8);
                 _plotLowerPoint = new PointF(_px, _pointBottomLeft.Y - _seriesFont.Height);
             }
@@ -891,7 +932,7 @@ namespace OpenCharts
                 _plotLowerPoint = new PointF(_px, _pointBottomLeft.Y - 1);
             }
 
-            
+
         }
         private string _TransformNumberToShort(float number)
         {
@@ -1114,6 +1155,12 @@ namespace OpenCharts
             get { return _zIndex; }
             set { _zIndex = value; }
         }
+        private bool _fillGradient = false;
+        public bool FillGradient
+        {
+            get { return _fillGradient; }
+            set { _fillGradient = value; }
+        }
 
         public delegate void EmptyDelegate();
         public event EmptyDelegate DataUpdated = delegate { };
@@ -1140,7 +1187,6 @@ namespace OpenCharts
             Column,
             Area,
             AreaSolid, // dunno.
-            //Hidden
         }
     }
     public class cSeries_Converter : TypeConverter
