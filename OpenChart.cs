@@ -71,6 +71,14 @@ namespace OpenCharts
             set { _plotBorderColor = value; }
         }
 
+        private System.Drawing.Drawing2D.SmoothingMode _plotSmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias; // Slowest.
+        [Category("OpenCharts")]
+        public System.Drawing.Drawing2D.SmoothingMode PlotSmoothingMode
+        {
+            get { return _plotSmoothingMode; }
+            set { _plotSmoothingMode = value; }
+        }
+
         private cxAxis[] _xAxis = new cxAxis[] {
             new cxAxis()
         };
@@ -111,33 +119,7 @@ namespace OpenCharts
                 if (value == null)
                     return;
                 for (int i = 0; i < Series.Length; i++)
-                {
                     _seriesSorted.Add(Series[i]);
-                    Series[i].DataUpdated += delegate
-                    {
-                        // Set upper && lower limits.
-                        _upperLimit = 0;
-                        _lowerLimit = 0;
-                        foreach (var _ser in Series)
-                            if (_ser.Data != null)
-                                foreach (string _data in _ser.Data)
-                                {
-                                    double _ddata = 0;
-                                    if (double.TryParse(_data, out _ddata))
-                                    {
-                                        if (_ddata > _upperLimit)
-                                            _upperLimit = (float)_ddata;
-                                        if (_ddata < _lowerLimit)
-                                            _lowerLimit = (float)_ddata;
-                                    }
-                                }
-                        _upperLimit += _upperLimit * .1f;
-                        if (_lowerLimit < 0)
-                            _lowerLimit += _lowerLimit * .1f;
-                        else
-                            _lowerLimit += _lowerLimit / .1f;
-                    };
-                }
                 // zIndex sort.
                 if (_seriesSorted.FindIndex(x => x.zIndex > -1) > -1)
                     _seriesSorted.Sort(delegate(cSeries x, cSeries y)
@@ -209,6 +191,9 @@ namespace OpenCharts
         private int _pointBottomRight_RightOffset = 16;
         private int _pointBottomRight_BottomOffset = 0;
 
+        private float _mapHeight = 24;
+        private int xaxis_maps = 0;
+
         private int[] _catsVisible;
         private float[] _catSkipFactor;
 
@@ -225,7 +210,7 @@ namespace OpenCharts
             Graphics g = e.Graphics;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
-            int _catsWidth = _pointBottomRight.X - _pointBottomLeft.X; // Yep, cats.
+            float _catsWidth = _pointBottomRight.X - _pointBottomLeft.X; // Yep, cats.
             if (_catsWidth < 0) _catsWidth = 0;
             float[] _widthPerCat = new float[xAxis.Length];
             _catsVisible = new int[xAxis.Length];
@@ -236,12 +221,12 @@ namespace OpenCharts
             {
                 if (xAxis[i].Categories == null)
                     continue;
-                _widthPerCat[i] = (float)_catsWidth / (float)xAxis[i].Categories.Length;
+                _widthPerCat[i] = _catsWidth / (float)xAxis[i].Categories.Length;
                 _catsVisible[i] = xAxis[i].Categories.Length - (int)_serCatOffset[i];
                 _catSkipFactor[i] = 1;
                 if (_widthPerCat[i] < xAxis[i].CategoriesMinWidth)
                 {
-                    _catsVisible[i] = _catsWidth / xAxis[i].CategoriesMinWidth;
+                    _catsVisible[i] = Convert.ToInt32(_catsWidth / xAxis[i].CategoriesMinWidth);
                     if (_catsVisible[i] == 0) continue;
                     _widthPerCat[i] = _catsWidth / _catsVisible[i];
                     _catSkipFactor[i] = ((float)xAxis[i].Categories.Length) / (float)_catsVisible[i];
@@ -271,7 +256,7 @@ namespace OpenCharts
             Color _tooltipColor = Color.White;
 
             // Series.
-            if (_upperLimit == 0 && _lowerLimit == 0)
+            //if (_upperLimit == 0 && _lowerLimit == 0)
             {
                 _upperLimit = 0;
                 _lowerLimit = 0;
@@ -295,10 +280,10 @@ namespace OpenCharts
                     _lowerLimit += _lowerLimit / .1f;
             }
 
+            
             if (_Series != null && _Series.Length > 0)
             {
                 float _pixelsPerPoint = (_plotLowerPoint.Y - _plotUpperPoint.Y) / (_upperLimit - _lowerLimit);
-
                 // Draw grid.
                 if (yAxis.GridLineCount > 0)
                 {
@@ -317,236 +302,30 @@ namespace OpenCharts
                     }
                 }
 
-                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                if (PlotSmoothingMode == System.Drawing.Drawing2D.SmoothingMode.Invalid)
+                    return;
+                g.SmoothingMode = PlotSmoothingMode;
 
                 int _serPointColor_current = 0;
+
+                // Setting colors for series.
                 Color _serPointColor = _seriesColorCollection[_serPointColor_current];
+                for (int k = 0; k < _seriesSorted.Count; k++)
+                    if (_seriesSorted[k].Color != Color.White)
+                        _serPointColor = _seriesSorted[k].Color;
+                    else
+                    {
+                        _seriesSorted[k].Color = _serPointColor;
+                        // Next color.
+                        _serPointColor_current++;
+                        if (_seriesColorCollection.Length <= _serPointColor_current)
+                            _serPointColor_current = 0;
+                        _serPointColor = _seriesColorCollection[_serPointColor_current];
+                    }
 
                 for (int xa = 0; xa < xAxis.Length; xa++)
-                {
                     if (xAxis[xa].Categories != null)
-                    {
-                        int columnscount = Series.Count(x => x.Type == cSeries.eType.Column);
-                        float columnwidth = ((_widthPerCat[xa] - 8) / columnscount) / _catSkipFactor[xa];
-                        int columnindex = 0;
-
-                        for (int k = 0; k < _seriesSorted.Count; k++)
-                        {
-                            if (_seriesSorted[k].Data != null && xa == _seriesSorted[k].xAxis)
-                            {
-                                if (_seriesSorted[k].Color != Color.White)
-                                    _serPointColor = _seriesSorted[k].Color;
-                                else
-                                {
-                                    _seriesSorted[k].Color = _serPointColor;
-                                    // Next color.
-                                    _serPointColor_current++;
-                                    if (_seriesColorCollection.Length <= _serPointColor_current)
-                                        _serPointColor_current = 0;
-                                    _serPointColor = _seriesColorCollection[_serPointColor_current];
-                                }
-                                List<cSeries.Point> _serPoints = new List<cSeries.Point>();
-                                for (int i = (int)_serCatOffset[xa]; i < _seriesSorted[k].Data.Length && i < _catsToCount[xa] + (int)_serCatOffset[xa]; i++)
-                                {
-                                    double _datavalue = 0;
-                                    if (double.TryParse(_seriesSorted[k].Data[i], out _datavalue))
-                                        _serPoints.Add(new cSeries.Point(
-                                            _pointBottomLeft.X + ((float)_catsWidth / (float)_catsToCount[xa]) / 2 + ((float)_catsWidth / (float)_catsToCount[xa]) * (i - (int)_serCatOffset[xa]),
-                                            _plotLowerPoint.Y - ((float)_datavalue - _lowerLimit) * _pixelsPerPoint));
-                                    else
-                                        _serPoints.Add(null);
-                                }
-
-                                SolidBrush _serEllipseBrush = new SolidBrush(_seriesSorted[k].Color);
-                                int ar = _seriesSorted[k].Color.R; ar = ar < 200 ? ar + 50 : 250;
-                                int ag = _seriesSorted[k].Color.G; ag = ag < 200 ? ag + 50 : 250;
-                                int ab = _seriesSorted[k].Color.B; ab = ab < 200 ? ab + 50 : 250;
-                                int aa = 100;
-                                SolidBrush _areaBrush = new SolidBrush(Color.FromArgb(aa, ar, ag, ab));
-                                // Slow.
-                                Bitmap _texForBrush = new Bitmap(1, 1);
-                                TextureBrush _tbrush = new TextureBrush(_texForBrush);
-                                if (_seriesSorted[k].FillGradient &&
-                                    (_seriesSorted[k].Type == cSeries.eType.Area ||
-                                     _seriesSorted[k].Type == cSeries.eType.AreaSolid ||
-                                     _seriesSorted[k].Type == cSeries.eType.Column ||
-                                     _seriesSorted[k].Type == cSeries.eType.AreaSpline))
-                                {
-                                    _texForBrush = new Bitmap((int)_pixelsPerPoint + 1, (int)this.Height);
-                                    for (int _tfbx = 0; _tfbx < _texForBrush.Width; _tfbx++)
-                                        for (int _tfby = 0; _tfby < _texForBrush.Height; _tfby++)
-                                        {
-                                            int _tfba = 250 - (int)(((float)256 / (_texForBrush.Height)) * _tfby);
-                                            _tfba = _tfba < 0 ? 0 : _tfba;
-                                            _texForBrush.SetPixel(_tfbx, _tfby,
-                                                Color.FromArgb(_tfba, _serEllipseBrush.Color.R, _serEllipseBrush.Color.G, _serEllipseBrush.Color.B));
-                                        }
-                                    _tbrush = new TextureBrush(_texForBrush);
-                                }
-
-                                Pen _serLinePen = new Pen(_seriesSorted[k].Color);
-                                _serLinePen.Width = 2 / _catSkipFactor[xa];
-                                if (_serLinePen.Width == 0)
-                                    _serLinePen.Width = 1;
-
-                                for (int i = 0; i < _serPoints.Count; i++)
-                                {
-                                    if (_serPoints[i] != null)
-                                    {
-                                        if (_serPoints[i].X > _pointBottomRight.X)
-                                            continue; // dunno.
-                                        switch (_seriesSorted[k].Type)
-                                        {
-                                            case cSeries.eType.Point:
-                                                g.FillEllipse(_serEllipseBrush, _serPoints[i].X - 4 / _catSkipFactor[xa], _serPoints[i].Y - 4 / _catSkipFactor[xa], 8 / _catSkipFactor[xa], 8 / _catSkipFactor[xa]);
-                                                break;
-                                            case cSeries.eType.PointLine:
-                                                g.FillEllipse(_serEllipseBrush, _serPoints[i].X - 4 / _catSkipFactor[xa], _serPoints[i].Y - 4 / _catSkipFactor[xa], 8 / _catSkipFactor[xa], 8 / _catSkipFactor[xa]);
-                                                if (i + 1 < _serPoints.Count && _serPoints[i + 1] != null)
-                                                {
-                                                    if (_serPoints[i + 1].X > _pointBottomRight.X)
-                                                        continue; // dunno.
-                                                    g.DrawLine(_serLinePen, _serPoints[i].X, _serPoints[i].Y, _serPoints[i + 1].X, _serPoints[i + 1].Y);
-                                                }
-                                                break;
-                                            case cSeries.eType.Line:
-                                                if (i + 1 < _serPoints.Count && _serPoints[i + 1] != null)
-                                                {
-                                                    if (_serPoints[i + 1].X > _pointBottomRight.X)
-                                                        continue; // dunno.
-                                                    g.DrawLine(_serLinePen, _serPoints[i].X, _serPoints[i].Y, _serPoints[i + 1].X, _serPoints[i + 1].Y);
-                                                }
-                                                break;
-                                            case cSeries.eType.LineShadowed:
-                                                if (i + 1 < _serPoints.Count && _serPoints[i + 1] != null)
-                                                {
-                                                    if (_serPoints[i + 1].X > _pointBottomRight.X)
-                                                        continue; // dunno.
-                                                    Pen pline = new Pen(Color.LightGray);
-                                                    pline.Width = 2 * _serScale[xa];
-                                                    g.DrawLine(pline, _serPoints[i].X + 1f * _serScale[xa], _serPoints[i].Y + 1f * _serScale[xa], _serPoints[i + 1].X + 1f * _serScale[xa], _serPoints[i + 1].Y + 1f * _serScale[xa]);
-                                                    g.DrawLine(_serLinePen, _serPoints[i].X, _serPoints[i].Y, _serPoints[i + 1].X, _serPoints[i + 1].Y);
-                                                }
-                                                break;
-                                            case cSeries.eType.LineSolid:
-                                                if (i + 1 < _serPoints.Count && i < _catsToCount[xa])
-                                                {
-                                                    if (_serPoints[i + 1] == null)
-                                                        g.FillEllipse(_serEllipseBrush, _serPoints[i].X - 4 / _catSkipFactor[xa], _serPoints[i].Y - 4 / _catSkipFactor[xa], 8 / _catSkipFactor[xa], 8 / _catSkipFactor[xa]);
-                                                    else
-                                                    {
-                                                        if (_serPoints[i + 1].X > _pointBottomRight.X)
-                                                            continue; // dunno.
-                                                        float half_dis = (_serPoints[i + 1].X - _serPoints[i].X) / 2;
-                                                        g.DrawLine(_serLinePen, _serPoints[i].X - half_dis, _serPoints[i].Y, _serPoints[i].X + half_dis, _serPoints[i].Y);
-                                                        g.DrawLine(_serLinePen, _serPoints[i].X + half_dis, _serPoints[i].Y, _serPoints[i].X + half_dis, _serPoints[i + 1].Y);
-                                                        g.DrawLine(_serLinePen, _serPoints[i].X + half_dis, _serPoints[i + 1].Y, _serPoints[i + 1].X + half_dis, _serPoints[i + 1].Y);
-                                                    }
-                                                }
-                                                break;
-                                            case cSeries.eType.Spline:
-                                                {
-                                                    List<PointF> _curvePoints = new List<PointF>();
-                                                    foreach (var p in _serPoints)
-                                                        if (p != null && p.X <= _pointBottomRight.X)
-                                                            _curvePoints.Add(new PointF(p.X, p.Y));
-                                                    g.DrawCurve(_serLinePen, _curvePoints.ToArray());
-                                                    i = _serPoints.Count;
-                                                }
-                                                break;
-                                            case cSeries.eType.Column:
-                                                if (!_seriesSorted[k].FillGradient)
-                                                    g.FillRectangle(_serEllipseBrush, _serPoints[i].X + (columnscount > 1 ? -columnwidth * columnscount / 2 + columnwidth * columnindex : -columnwidth / 2), _serPoints[i].Y, columnwidth, _plotLowerPoint.Y - _serPoints[i].Y);
-                                                else
-                                                    g.FillRectangle(_tbrush, _serPoints[i].X + (columnscount > 1 ? -columnwidth * columnscount / 2 + columnwidth * columnindex : -columnwidth / 2), _serPoints[i].Y, columnwidth, _plotLowerPoint.Y - _serPoints[i].Y);
-                                                if (_seriesSorted[k].Outline)
-                                                    g.DrawRectangle(_serLinePen, _serPoints[i].X + (columnscount > 1 ? -columnwidth * columnscount / 2 + columnwidth * columnindex : -columnwidth / 2), _serPoints[i].Y, columnwidth, _plotLowerPoint.Y - _serPoints[i].Y);
-                                                break;
-                                            case cSeries.eType.Area:
-                                                if (i == 0)
-                                                    g.FillEllipse(_serEllipseBrush, _serPoints[i].X - 4 / _catSkipFactor[xa], _serPoints[i].Y - 4 / _catSkipFactor[xa], 8 / _catSkipFactor[xa], 8 / _catSkipFactor[xa]);
-                                                if (i + 1 < _serPoints.Count && _serPoints[i + 1] != null && i < _catsToCount[xa])
-                                                {
-                                                    if (_serPoints[i + 1].X > _pointBottomRight.X)
-                                                        continue; // dunno.
-
-                                                    List<PointF> _areaPoints = new List<PointF>();
-                                                    _areaPoints.Add(new PointF(_serPoints[i].X, _serPoints[i].Y));
-                                                    _areaPoints.Add(new PointF(_serPoints[i + 1].X, _serPoints[i + 1].Y));
-                                                    _areaPoints.Add(new PointF(_serPoints[i + 1].X, _plotLowerPoint.Y));
-                                                    _areaPoints.Add(new PointF(_serPoints[i].X, _plotLowerPoint.Y));
-                                                    if (!_seriesSorted[k].FillGradient)
-                                                        g.FillPolygon(_areaBrush, _areaPoints.ToArray());
-                                                    else
-                                                        g.FillPolygon(_tbrush, _areaPoints.ToArray());
-                                                    if (_seriesSorted[k].Outline)
-                                                        g.DrawLine(_serLinePen, _serPoints[i].X, _serPoints[i].Y, _serPoints[i + 1].X, _serPoints[i + 1].Y);
-                                                }
-                                                else
-                                                    g.FillEllipse(_serEllipseBrush, _serPoints[i].X - 4 / _catSkipFactor[xa], _serPoints[i].Y - 4 / _catSkipFactor[xa], 8 / _catSkipFactor[xa], 8 / _catSkipFactor[xa]);
-                                                break;
-                                            case cSeries.eType.AreaSolid:
-                                                if (i + 1 < _serPoints.Count && _serPoints[i + 1] != null && i < _catsToCount[xa])
-                                                {
-                                                    if (_serPoints[i + 1].X > _pointBottomRight.X)
-                                                        continue; // dunno.
-                                                    float half_dis = (_serPoints[i + 1].X - _serPoints[i].X) / 2;
-                                                    List<PointF> _areaPoints = new List<PointF>();
-                                                    _areaPoints.Add(new PointF(_serPoints[i].X - (i == 0 ? half_dis : 0), _serPoints[i].Y));
-                                                    _areaPoints.Add(new PointF(_serPoints[i].X + half_dis, _serPoints[i].Y));
-                                                    _areaPoints.Add(new PointF(_serPoints[i].X + half_dis, _serPoints[i + 1].Y));
-                                                    _areaPoints.Add(new PointF(_serPoints[i + 1].X + (i + 2 == _serPoints.Count ? half_dis : 0) + .05f, _serPoints[i + 1].Y));
-                                                    _areaPoints.Add(new PointF(_serPoints[i + 1].X + (i + 2 == _serPoints.Count ? half_dis : 0) + .05f, _plotLowerPoint.Y));
-                                                    _areaPoints.Add(new PointF(_serPoints[i].X - (i == 0 ? half_dis : 0), _plotLowerPoint.Y));
-                                                    if (!_seriesSorted[k].FillGradient)
-                                                        g.FillPolygon(_areaBrush, _areaPoints.ToArray());
-                                                    else
-                                                        g.FillPolygon(_tbrush, _areaPoints.ToArray());
-                                                    if (_seriesSorted[k].Outline)
-                                                    {
-                                                        g.DrawLine(_serLinePen, _serPoints[i].X - (i == 0 ? half_dis : 0), _serPoints[i].Y, _serPoints[i].X + half_dis, _serPoints[i].Y);
-                                                        g.DrawLine(_serLinePen, _serPoints[i].X + half_dis, _serPoints[i].Y, _serPoints[i].X + half_dis, _serPoints[i + 1].Y);
-                                                        g.DrawLine(_serLinePen, _serPoints[i].X + half_dis, _serPoints[i + 1].Y, _serPoints[i + 1].X + (i + 2 == _serPoints.Count ? half_dis : 0), _serPoints[i + 1].Y);
-                                                    }
-                                                }
-                                                break;
-                                            case cSeries.eType.AreaSpline:
-                                                {
-                                                    List<PointF> _curvePoints = new List<PointF>();
-                                                    foreach (var p in _serPoints)
-                                                        if (p != null && p.X <= _pointBottomRight.X)
-                                                            _curvePoints.Add(new PointF(p.X, p.Y));
-
-                                                    i = _serPoints.Count;
-                                                    System.Drawing.Drawing2D.GraphicsPath path = new System.Drawing.Drawing2D.GraphicsPath();
-                                                    path.AddCurve(_curvePoints.ToArray());
-                                                    if (_curvePoints.Count > 0)
-                                                    {
-                                                        PointF firstPoint = new PointF(_curvePoints[0].X, _curvePoints[0].Y);
-                                                        PointF lastPoint = new PointF(_curvePoints[_curvePoints.Count - 1].X, _curvePoints[_curvePoints.Count - 1].Y);
-                                                        path.AddLine(lastPoint.X, lastPoint.Y, lastPoint.X, _plotLowerPoint.Y);
-                                                        path.AddLine(lastPoint.X, _plotLowerPoint.Y, firstPoint.X, _plotLowerPoint.Y);
-                                                        path.AddLine(firstPoint.X, _plotLowerPoint.Y, firstPoint.X, firstPoint.Y);
-                                                        if (!_seriesSorted[k].FillGradient)
-                                                            g.FillPath(_areaBrush, path);
-                                                        else
-                                                            g.FillPath(_tbrush, path);
-                                                        if (_seriesSorted[k].Outline)
-                                                            g.DrawCurve(_serLinePen, _curvePoints.ToArray());
-                                                        //g.DrawLine(_serLinePen, lastPoint.X, lastPoint.Y, lastPoint.X, _plotLowerPoint.Y);
-                                                        //g.DrawLine(_serLinePen, firstPoint.X, _plotLowerPoint.Y, firstPoint.X, firstPoint.Y);
-                                                    }
-                                                }
-                                                break;
-                                        }
-                                    }
-                                }
-                                if (_seriesSorted[k].Type == cSeries.eType.Column)
-                                    columnindex++;
-                            }
-                        }
-                    }
-                }
+                        DrawSeries(g, _catsToCount[xa], _pixelsPerPoint, xa, _widthPerCat[xa], (int)_serCatOffset[xa], new RectangleF(_plotLowerPoint.X, _plotLowerPoint.Y, _catsWidth, _plotLowerPoint.Y - _plotUpperPoint.Y + 20));
             }
 
             // Legend.
@@ -575,16 +354,19 @@ namespace OpenCharts
 
             // Categories.
             int xaxis_todraw = 0;
+            int xaxis_map = 0;
             for (int xa = 0; xa < xAxis.Length; xa++)
             {
                 if (xAxis[xa].Categories == null || !xAxis[xa].Visible)
                     continue;
+                
                 // Bottom line.
+                float _cat_start_y = xaxis_todraw * 24 + _pointBottomLeft.Y + (xaxis_map) * _mapHeight;
                 int _bottomLineHeight = 4;
                 Pen _bottomLinePen = new Pen(xAxis[xa].BottomLineColor);
-                g.DrawLine(_bottomLinePen, _pointBottomLeft.X, _pointBottomLeft.Y + 24 * xaxis_todraw, _pointBottomRight.X, _pointBottomRight.Y + 24 * xaxis_todraw);
-                g.DrawLine(_bottomLinePen, _pointBottomLeft.X, _pointBottomLeft.Y + 24 * xaxis_todraw, _pointBottomLeft.X, _pointBottomLeft.Y + 24 * xaxis_todraw + _bottomLineHeight);
-                g.DrawLine(_bottomLinePen, _pointBottomRight.X, _pointBottomLeft.Y + 24 * xaxis_todraw, _pointBottomRight.X, _pointBottomRight.Y + 24 * xaxis_todraw + _bottomLineHeight);
+                g.DrawLine(_bottomLinePen, _pointBottomLeft.X, _cat_start_y, _pointBottomRight.X, _cat_start_y);
+                g.DrawLine(_bottomLinePen, _pointBottomLeft.X, _cat_start_y, _pointBottomLeft.X, _cat_start_y + _bottomLineHeight);
+                g.DrawLine(_bottomLinePen, _pointBottomRight.X, _cat_start_y, _pointBottomRight.X, _cat_start_y + _bottomLineHeight);
 
                 if (xAxis[xa].Categories != null)
                 {
@@ -597,7 +379,7 @@ namespace OpenCharts
                     {
                         Point _linePoint = new Point(_pointBottomLeft.X + (_catIndex + 1) * (int)_widthPerCat[xa], _pointBottomLeft.Y);
                         if (_catIndex + 1 != _catsVisible[xa])
-                            g.DrawLine(_bottomLinePen, _linePoint.X, _linePoint.Y + 24 * xaxis_todraw, _linePoint.X, _linePoint.Y + _bottomLineHeight + 24 * xaxis_todraw);
+                            g.DrawLine(_bottomLinePen, _linePoint.X, _cat_start_y, _linePoint.X, _bottomLineHeight + _cat_start_y);
                         if (i + _serCatOffset[xa] < xAxis[xa].Categories.Length)
                         {
                             float temp = 0;
@@ -607,7 +389,7 @@ namespace OpenCharts
                             string catvalue = xAxis[xa].Categories[catvalue_index];
                             if (float.TryParse(catvalue, out temp))
                                 catvalue = _TransformNumberToShort(temp);
-                            g.DrawString(catvalue, xAxis[xa].CategoriesFont, _catBrush, new RectangleF(_linePoint.X - _widthPerCat[xa], _linePoint.Y + 2 + 24 * xaxis_todraw, _widthPerCat[xa], 14), _catFormat);
+                            g.DrawString(catvalue, xAxis[xa].CategoriesFont, _catBrush, new RectangleF(_linePoint.X - _widthPerCat[xa], _cat_start_y + 2, _widthPerCat[xa], 14), _catFormat);
                             //}
                             /*catch (IndexOutOfRangeException)
                             {
@@ -629,10 +411,18 @@ namespace OpenCharts
                         float scrollbarwidth = _pointBottomRight.X - _pointBottomLeft.X;
                         float scrollwidth = ((float)_pointBottomRight.X - (float)_pointBottomLeft.X - 4) / _serScale[xa];
                         float tsw = scrollbarwidth - scrollwidth - 4;
+                        float scrollbarheight = 8;
+                        if (xAxis[xa].ShowMap)
+                            scrollbarheight = _mapHeight + 8;
 
-                        g.DrawRectangle(Pens.LightGray, _pointBottomLeft.X, _pointBottomLeft.Y - 8 + 24 * xaxis_todraw, scrollbarwidth, 8);
+                        g.DrawRectangle(Pens.LightGray, _pointBottomLeft.X, _cat_start_y - scrollbarheight, scrollbarwidth, scrollbarheight);
+
+                        // Map.
+                        float _pixelsPerPoint = (_mapHeight) / (_upperLimit - _lowerLimit);
+                        DrawSeries(g, xAxis[xa].Categories.Length, _pixelsPerPoint, xa, _catsWidth / (float)xAxis[xa].Categories.Length, 0, new RectangleF(_pointBottomLeft.X, _cat_start_y - 8, scrollbarwidth, _mapHeight));
+
                         float _scrollbarStartX = _pointBottomLeft.X + 2 + tsw * ((float)_serCatOffset[xa] / ((float)xAxis[xa].Categories.Length - _catsVisible[xa] * _catSkipFactor[xa]));
-                        float _scrollbarStartY = _pointBottomLeft.Y - 6 + 24 * xaxis_todraw;
+                        float _scrollbarStartY = _cat_start_y - 6;
                         g.FillRectangle(Brushes.Gray, _scrollbarStartX, _scrollbarStartY, scrollwidth, 4);
                         g.DrawRectangle(new Pen(Color.FromArgb(50, 50, 50)), _scrollbarStartX, _scrollbarStartY, scrollwidth, 4);
                         g.DrawLine(Pens.LightGray, _scrollbarStartX + scrollwidth / 2, _scrollbarStartY + 1, _scrollbarStartX + scrollwidth / 2, _scrollbarStartY + 3);
@@ -651,6 +441,8 @@ namespace OpenCharts
                     }
                 }
                 xaxis_todraw++;
+                if (xAxis[xa].ShowMap && _serScale[xa] > 1)
+                    xaxis_map++;
             }
 
             // Zoom value.
@@ -817,6 +609,220 @@ namespace OpenCharts
             }
         }
 
+        private void DrawSeries(Graphics g, int _catsToCount, float _pixelsPerPoint, int axisIndex, float _widthPerCat, int x_offset, RectangleF _drawArea)
+        {
+            int columnscount = Series.Count(x => x.Type == cSeries.eType.Column);
+            float columnwidth = ((_widthPerCat - 8) / columnscount) / _catSkipFactor[axisIndex];
+            int columnindex = 0;
+
+            for (int k = 0; k < _seriesSorted.Count; k++)
+            {
+                if (_seriesSorted[k].Data != null && axisIndex == _seriesSorted[k].xAxis)
+                {
+
+                    List<cSeries.Point> _serPoints = new List<cSeries.Point>();
+                    for (int i = (int)x_offset; i < _seriesSorted[k].Data.Length && i < _catsToCount + x_offset; i++)
+                    {
+                        double _datavalue = 0;
+                        if (double.TryParse(_seriesSorted[k].Data[i], out _datavalue))
+                            _serPoints.Add(new cSeries.Point(
+                                _drawArea.X + (_drawArea.Width / (float)_catsToCount) / 2 + (_drawArea.Width / (float)_catsToCount) * (i - x_offset),
+                                _drawArea.Y - ((float)_datavalue - _lowerLimit) * _pixelsPerPoint, _seriesSorted[k].Data[i]));
+                        else
+                            _serPoints.Add(null);
+                    }
+
+                    SolidBrush _serEllipseBrush = new SolidBrush(_seriesSorted[k].Color);
+                    int ar = _seriesSorted[k].Color.R;
+                    int ag = _seriesSorted[k].Color.G;
+                    int ab = _seriesSorted[k].Color.B;
+                    int aa = 100;
+                    SolidBrush _areaBrush = new SolidBrush(Color.FromArgb(aa, ar, ag, ab));
+                    // Slow.
+                    Bitmap _texForBrush = new Bitmap(1, 1);
+                    TextureBrush _tbrush = new TextureBrush(_texForBrush);
+                    if (_seriesSorted[k].FillGradient &&
+                        (_seriesSorted[k].Type == cSeries.eType.Area ||
+                         _seriesSorted[k].Type == cSeries.eType.AreaSolid ||
+                         _seriesSorted[k].Type == cSeries.eType.Column ||
+                         _seriesSorted[k].Type == cSeries.eType.AreaSpline))
+                    {
+                        _texForBrush = new Bitmap((int)_pixelsPerPoint + 1, (int)_drawArea.Height);
+                        for (int _tfbx = 0; _tfbx < _texForBrush.Width; _tfbx++)
+                            for (int _tfby = 0; _tfby < _texForBrush.Height; _tfby++)
+                            {
+                                int _tfba = 255 - (int)(((float)255 / (_texForBrush.Height)) * _tfby);
+                                _tfba = _tfba < 0 ? 0 : _tfba;
+                                _texForBrush.SetPixel(_tfbx, _tfby,
+                                    Color.FromArgb(_tfba, _serEllipseBrush.Color.R, _serEllipseBrush.Color.G, _serEllipseBrush.Color.B));
+                            }
+                        _tbrush = new TextureBrush(_texForBrush);
+                    }
+
+                    Pen _serLinePen = new Pen(_seriesSorted[k].Color);
+                    _serLinePen.Width = 2 / _catSkipFactor[axisIndex];
+                    if (_serLinePen.Width == 0)
+                        _serLinePen.Width = 1;
+
+                    for (int i = 0; i < _serPoints.Count; i++)
+                    {
+                        if (_serPoints[i] != null)
+                        {
+                            if (_serPoints[i].X > _pointBottomRight.X)
+                                continue; // dunno.
+                            switch (_seriesSorted[k].Type)
+                            {
+                                case cSeries.eType.Point:
+                                    g.FillEllipse(_serEllipseBrush, _serPoints[i].X - 4 / _catSkipFactor[axisIndex], _serPoints[i].Y - 4 / _catSkipFactor[axisIndex], 8 / _catSkipFactor[axisIndex], 8 / _catSkipFactor[axisIndex]);
+                                    break;
+                                case cSeries.eType.PointLine:
+                                    g.FillEllipse(_serEllipseBrush, _serPoints[i].X - 4 / _catSkipFactor[axisIndex], _serPoints[i].Y - 4 / _catSkipFactor[axisIndex], 8 / _catSkipFactor[axisIndex], 8 / _catSkipFactor[axisIndex]);
+                                    if (i + 1 < _serPoints.Count && _serPoints[i + 1] != null)
+                                    {
+                                        if (_serPoints[i + 1].X > _pointBottomRight.X)
+                                            continue; // dunno.
+                                        g.DrawLine(_serLinePen, _serPoints[i].X, _serPoints[i].Y, _serPoints[i + 1].X, _serPoints[i + 1].Y);
+                                    }
+                                    break;
+                                case cSeries.eType.Line:
+                                    if (i + 1 < _serPoints.Count && _serPoints[i + 1] != null)
+                                    {
+                                        if (_serPoints[i + 1].X > _pointBottomRight.X)
+                                            continue; // dunno.
+                                        g.DrawLine(_serLinePen, _serPoints[i].X, _serPoints[i].Y, _serPoints[i + 1].X, _serPoints[i + 1].Y);
+                                    }
+                                    break;
+                                case cSeries.eType.LineShadowed:
+                                    if (i + 1 < _serPoints.Count && _serPoints[i + 1] != null)
+                                    {
+                                        if (_serPoints[i + 1].X > _pointBottomRight.X)
+                                            continue; // dunno.
+                                        Pen pline = new Pen(Color.LightGray);
+                                        pline.Width = 2 * _serScale[axisIndex];
+                                        g.DrawLine(pline, _serPoints[i].X + 1f * _serScale[axisIndex], _serPoints[i].Y + 1f * _serScale[axisIndex], _serPoints[i + 1].X + 1f * _serScale[axisIndex], _serPoints[i + 1].Y + 1f * _serScale[axisIndex]);
+                                        g.DrawLine(_serLinePen, _serPoints[i].X, _serPoints[i].Y, _serPoints[i + 1].X, _serPoints[i + 1].Y);
+                                    }
+                                    break;
+                                case cSeries.eType.LineSolid:
+                                    if (i + 1 < _serPoints.Count && i < _catsToCount)
+                                    {
+                                        if (_serPoints[i + 1] == null)
+                                            g.FillEllipse(_serEllipseBrush, _serPoints[i].X - 4 / _catSkipFactor[axisIndex], _serPoints[i].Y - 4 / _catSkipFactor[axisIndex], 8 / _catSkipFactor[axisIndex], 8 / _catSkipFactor[axisIndex]);
+                                        else
+                                        {
+                                            if (_serPoints[i + 1].X > _pointBottomRight.X)
+                                                continue; // dunno.
+                                            float half_dis = (_serPoints[i + 1].X - _serPoints[i].X) / 2;
+                                            g.DrawLine(_serLinePen, _serPoints[i].X - half_dis, _serPoints[i].Y, _serPoints[i].X + half_dis, _serPoints[i].Y);
+                                            g.DrawLine(_serLinePen, _serPoints[i].X + half_dis, _serPoints[i].Y, _serPoints[i].X + half_dis, _serPoints[i + 1].Y);
+                                            g.DrawLine(_serLinePen, _serPoints[i].X + half_dis, _serPoints[i + 1].Y, _serPoints[i + 1].X + half_dis, _serPoints[i + 1].Y);
+                                        }
+                                    }
+                                    break;
+                                case cSeries.eType.Spline:
+                                    {
+                                        List<PointF> _curvePoints = new List<PointF>();
+                                        foreach (var p in _serPoints)
+                                            if (p != null && p.X <= _pointBottomRight.X)
+                                                _curvePoints.Add(new PointF(p.X, p.Y));
+                                        g.DrawCurve(_serLinePen, _curvePoints.ToArray());
+                                        i = _serPoints.Count;
+                                    }
+                                    break;
+                                case cSeries.eType.Column:
+                                    if (!_seriesSorted[k].FillGradient)
+                                        g.FillRectangle(_serEllipseBrush, _serPoints[i].X + (columnscount > 1 ? -columnwidth * columnscount / 2 + columnwidth * columnindex : -columnwidth / 2), _serPoints[i].Y, columnwidth, _drawArea.Y - _serPoints[i].Y);
+                                    else
+                                        g.FillRectangle(_tbrush, _serPoints[i].X + (columnscount > 1 ? -columnwidth * columnscount / 2 + columnwidth * columnindex : -columnwidth / 2), _serPoints[i].Y, columnwidth, _drawArea.Y - _serPoints[i].Y);
+                                    if (_seriesSorted[k].Outline)
+                                        g.DrawRectangle(_serLinePen, _serPoints[i].X + (columnscount > 1 ? -columnwidth * columnscount / 2 + columnwidth * columnindex : -columnwidth / 2), _serPoints[i].Y, columnwidth, _drawArea.Y - _serPoints[i].Y);
+                                    //g.DrawString(_serPoints[i].Data, xAxis[axisIndex].CategoriesFont, Brushes.DarkGray, _serPoints[i].X, _serPoints[i].Y);
+                                    break;
+                                case cSeries.eType.Area:
+                                    //if (i == 0)
+                                    //    g.FillEllipse(_serEllipseBrush, _serPoints[i].X - 4 / _catSkipFactor[axisIndex], _serPoints[i].Y - 4 / _catSkipFactor[axisIndex], 8 / _catSkipFactor[axisIndex], 8 / _catSkipFactor[axisIndex]);
+                                    if (i + 1 < _serPoints.Count && _serPoints[i + 1] != null && i < _catsToCount)
+                                    {
+                                        if (_serPoints[i + 1].X > _pointBottomRight.X)
+                                            continue; // dunno.
+
+                                        List<PointF> _areaPoints = new List<PointF>();
+                                        _areaPoints.Add(new PointF(_serPoints[i].X, _serPoints[i].Y));
+                                        _areaPoints.Add(new PointF(_serPoints[i + 1].X, _serPoints[i + 1].Y));
+                                        _areaPoints.Add(new PointF(_serPoints[i + 1].X, _drawArea.Y));
+                                        _areaPoints.Add(new PointF(_serPoints[i].X, _drawArea.Y));
+                                        if (!_seriesSorted[k].FillGradient)
+                                            g.FillPolygon(_areaBrush, _areaPoints.ToArray());
+                                        else
+                                            g.FillPolygon(_tbrush, _areaPoints.ToArray());
+                                        if (_seriesSorted[k].Outline)
+                                            g.DrawLine(_serLinePen, _serPoints[i].X, _serPoints[i].Y, _serPoints[i + 1].X, _serPoints[i + 1].Y);
+                                    }
+                                    //else
+                                    //    g.FillEllipse(_serEllipseBrush, _serPoints[i].X - 4 / _catSkipFactor[axisIndex], _serPoints[i].Y - 4 / _catSkipFactor[axisIndex], 8 / _catSkipFactor[axisIndex], 8 / _catSkipFactor[axisIndex]);
+                                    break;
+                                case cSeries.eType.AreaSolid:
+                                    if (i + 1 < _serPoints.Count && _serPoints[i + 1] != null && i < _catsToCount)
+                                    {
+                                        if (_serPoints[i + 1].X > _pointBottomRight.X)
+                                            continue; // dunno.
+                                        float half_dis = (_serPoints[i + 1].X - _serPoints[i].X) / 2;
+                                        List<PointF> _areaPoints = new List<PointF>();
+                                        _areaPoints.Add(new PointF(_serPoints[i].X - (i == 0 ? half_dis : 0), _serPoints[i].Y));
+                                        _areaPoints.Add(new PointF(_serPoints[i].X + half_dis, _serPoints[i].Y));
+                                        _areaPoints.Add(new PointF(_serPoints[i].X + half_dis, _serPoints[i + 1].Y));
+                                        _areaPoints.Add(new PointF(_serPoints[i + 1].X + (i + 2 == _serPoints.Count ? half_dis : 0) + .05f, _serPoints[i + 1].Y));
+                                        _areaPoints.Add(new PointF(_serPoints[i + 1].X + (i + 2 == _serPoints.Count ? half_dis : 0) + .05f, _drawArea.Y));
+                                        _areaPoints.Add(new PointF(_serPoints[i].X - (i == 0 ? half_dis : 0), _drawArea.Y));
+                                        if (!_seriesSorted[k].FillGradient)
+                                            g.FillPolygon(_areaBrush, _areaPoints.ToArray());
+                                        else
+                                            g.FillPolygon(_tbrush, _areaPoints.ToArray());
+                                        if (_seriesSorted[k].Outline)
+                                        {
+                                            g.DrawLine(_serLinePen, _serPoints[i].X - (i == 0 ? half_dis : 0), _serPoints[i].Y, _serPoints[i].X + half_dis, _serPoints[i].Y);
+                                            g.DrawLine(_serLinePen, _serPoints[i].X + half_dis, _serPoints[i].Y, _serPoints[i].X + half_dis, _serPoints[i + 1].Y);
+                                            g.DrawLine(_serLinePen, _serPoints[i].X + half_dis, _serPoints[i + 1].Y, _serPoints[i + 1].X + (i + 2 == _serPoints.Count ? half_dis : 0), _serPoints[i + 1].Y);
+                                        }
+                                    }
+                                    break;
+                                case cSeries.eType.AreaSpline:
+                                    {
+                                        List<PointF> _curvePoints = new List<PointF>();
+                                        foreach (var p in _serPoints)
+                                            if (p != null && p.X <= _pointBottomRight.X)
+                                                _curvePoints.Add(new PointF(p.X, p.Y));
+
+                                        i = _serPoints.Count;
+                                        System.Drawing.Drawing2D.GraphicsPath path = new System.Drawing.Drawing2D.GraphicsPath();
+                                        path.AddCurve(_curvePoints.ToArray());
+                                        if (_curvePoints.Count > 0)
+                                        {
+                                            PointF firstPoint = new PointF(_curvePoints[0].X, _curvePoints[0].Y);
+                                            PointF lastPoint = new PointF(_curvePoints[_curvePoints.Count - 1].X, _curvePoints[_curvePoints.Count - 1].Y);
+                                            path.AddLine(lastPoint.X, lastPoint.Y, lastPoint.X, _drawArea.Y);
+                                            path.AddLine(lastPoint.X, _drawArea.Y, firstPoint.X, _drawArea.Y);
+                                            path.AddLine(firstPoint.X, _drawArea.Y, firstPoint.X, firstPoint.Y);
+                                            if (!_seriesSorted[k].FillGradient)
+                                                g.FillPath(_areaBrush, path);
+                                            else
+                                                g.FillPath(_tbrush, path);
+                                            if (_seriesSorted[k].Outline)
+                                                g.DrawCurve(_serLinePen, _curvePoints.ToArray());
+                                            //g.DrawLine(_serLinePen, lastPoint.X, lastPoint.Y, lastPoint.X, _plotLowerPoint.Y);
+                                            //g.DrawLine(_serLinePen, firstPoint.X, _plotLowerPoint.Y, firstPoint.X, firstPoint.Y);
+                                        }
+                                    }
+                                    break;
+                            }
+                        }
+                    }
+                    if (_seriesSorted[k].Type == cSeries.eType.Column)
+                        columnindex++;
+                }
+            }
+        }
+
         private void _pointTooltip_Popup(object sender, PopupEventArgs e)
         {
             e.ToolTipSize = new Size((int)_pointTooltipInfo.Width, (int)_pointTooltipInfo.Height);
@@ -850,16 +856,21 @@ namespace OpenCharts
         private void _RecalculateDraw()
         {
             int xaxis_todraw = 0;
+            xaxis_maps = 0;
             for (int i = 0; i < xAxis.Length; i++)
                 if (xAxis[i].Categories != null && xAxis[i].Visible)
+                {
                     xaxis_todraw++;
+                    if (xAxis[i].ShowMap && _serScale[i] > 1)
+                        xaxis_maps++;
+                }
             int _px = (yAxis.Title.Text != String.Empty || yAxis.GridValuesShow ? _pointBottomLeft_LeftOffset : 0);
             if (xaxis_todraw > 0)
             {
-                _pointBottomLeft = new Point(_px, this.Height - _pointBottomLeft_BottomOffset - 24 * xaxis_todraw);
-                _pointBottomRight = new Point(this.Width - _pointBottomRight_RightOffset, this.Height - _pointBottomRight_BottomOffset - 24 * xaxis_todraw);
+                _pointBottomLeft = new Point(_px, this.Height - _pointBottomLeft_BottomOffset - 24 * xaxis_todraw - xaxis_maps * (int)_mapHeight);
+                _pointBottomRight = new Point(this.Width - _pointBottomRight_RightOffset, this.Height - _pointBottomRight_BottomOffset - 24 * xaxis_todraw - xaxis_maps * (int)_mapHeight);
                 _plotUpperPoint = new PointF(_px, 8);
-                _plotLowerPoint = new PointF(_px, _pointBottomLeft.Y - _seriesFont.Height);
+                _plotLowerPoint = new PointF(_px, _pointBottomLeft.Y - _seriesFont.Height - (xAxis.Length > 0 && xAxis[0].ShowMap && _serScale[0] > 1 ? 1 : 0) * _mapHeight);
             }
             else
             {
@@ -935,6 +946,13 @@ namespace OpenCharts
         {
             get { return _BottomLineColor; }
             set { _BottomLineColor = value; }
+        }
+
+        private bool _showMap = false;
+        public bool ShowMap
+        {
+            get { return _showMap; }
+            set { _showMap = value; }
         }
 
         private bool _visible = true;
@@ -1110,12 +1128,14 @@ namespace OpenCharts
 
         public class Point
         {
+            public string Data;
             public float X;
             public float Y;
-            public Point(float x, float y)
+            public Point(float x, float y, string data)
             {
                 X = x;
                 Y = y;
+                Data = data;
             }
             public bool Selected;
         }
