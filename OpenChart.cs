@@ -280,7 +280,7 @@ namespace OpenCharts
                     _lowerLimit += _lowerLimit / .1f;
             }
 
-            
+
             if (_Series != null && _Series.Length > 0)
             {
                 float _pixelsPerPoint = (_plotLowerPoint.Y - _plotUpperPoint.Y) / (_upperLimit - _lowerLimit);
@@ -325,7 +325,7 @@ namespace OpenCharts
 
                 for (int xa = 0; xa < xAxis.Length; xa++)
                     if (xAxis[xa].Categories != null)
-                        DrawSeries(g, _catsToCount[xa], _pixelsPerPoint, xa, _widthPerCat[xa], (int)_serCatOffset[xa], new RectangleF(_plotLowerPoint.X, _plotLowerPoint.Y, _catsWidth, _plotLowerPoint.Y - _plotUpperPoint.Y + 20));
+                        DrawSeries(g, _catsToCount[xa], _pixelsPerPoint, xa, _widthPerCat[xa], (int)_serCatOffset[xa], new RectangleF(_plotLowerPoint.X, _plotLowerPoint.Y, _catsWidth, _plotLowerPoint.Y - _plotUpperPoint.Y));
             }
 
             // Legend.
@@ -359,7 +359,7 @@ namespace OpenCharts
             {
                 if (xAxis[xa].Categories == null || !xAxis[xa].Visible)
                     continue;
-                
+
                 // Bottom line.
                 float _cat_start_y = xaxis_todraw * 24 + _pointBottomLeft.Y + (xaxis_map) * _mapHeight;
                 int _bottomLineHeight = 4;
@@ -412,15 +412,16 @@ namespace OpenCharts
                         float scrollwidth = ((float)_pointBottomRight.X - (float)_pointBottomLeft.X - 4) / _serScale[xa];
                         float tsw = scrollbarwidth - scrollwidth - 4;
                         float scrollbarheight = 8;
-                        if (xAxis[xa].ShowMap)
+                        if (xAxis[xa].ShowMap && _serScale[xa] > 1)
+                        {
                             scrollbarheight = _mapHeight + 8;
+                            // Map.
+                            float _pixelsPerPoint = (_mapHeight) / (_upperLimit - _lowerLimit);
+                            DrawSeries(g, xAxis[xa].Categories.Length, _pixelsPerPoint, xa, _catsWidth / (float)xAxis[xa].Categories.Length, 0, new RectangleF(_pointBottomLeft.X, _cat_start_y - 8, scrollbarwidth, _mapHeight));
 
+                        }
+                        
                         g.DrawRectangle(Pens.LightGray, _pointBottomLeft.X, _cat_start_y - scrollbarheight, scrollbarwidth, scrollbarheight);
-
-                        // Map.
-                        float _pixelsPerPoint = (_mapHeight) / (_upperLimit - _lowerLimit);
-                        DrawSeries(g, xAxis[xa].Categories.Length, _pixelsPerPoint, xa, _catsWidth / (float)xAxis[xa].Categories.Length, 0, new RectangleF(_pointBottomLeft.X, _cat_start_y - 8, scrollbarwidth, _mapHeight));
-
                         float _scrollbarStartX = _pointBottomLeft.X + 2 + tsw * ((float)_serCatOffset[xa] / ((float)xAxis[xa].Categories.Length - _catsVisible[xa] * _catSkipFactor[xa]));
                         float _scrollbarStartY = _cat_start_y - 6;
                         g.FillRectangle(Brushes.Gray, _scrollbarStartX, _scrollbarStartY, scrollwidth, 4);
@@ -647,16 +648,18 @@ namespace OpenCharts
                          _seriesSorted[k].Type == cSeries.eType.Column ||
                          _seriesSorted[k].Type == cSeries.eType.AreaSpline))
                     {
-                        _texForBrush = new Bitmap((int)_pixelsPerPoint + 1, (int)_drawArea.Height);
+                        _texForBrush = new Bitmap(1, (int)(_drawArea.Height));
                         for (int _tfbx = 0; _tfbx < _texForBrush.Width; _tfbx++)
                             for (int _tfby = 0; _tfby < _texForBrush.Height; _tfby++)
                             {
                                 int _tfba = 255 - (int)(((float)255 / (_texForBrush.Height)) * _tfby);
                                 _tfba = _tfba < 0 ? 0 : _tfba;
+                                _tfba = _tfba > 255 ? 255 : _tfba;
                                 _texForBrush.SetPixel(_tfbx, _tfby,
                                     Color.FromArgb(_tfba, _serEllipseBrush.Color.R, _serEllipseBrush.Color.G, _serEllipseBrush.Color.B));
                             }
-                        _tbrush = new TextureBrush(_texForBrush);
+                        _tbrush = new TextureBrush(_texForBrush, System.Drawing.Drawing2D.WrapMode.Tile);
+                        _tbrush.TranslateTransform(_drawArea.X, _drawArea.Y);
                     }
 
                     Pen _serLinePen = new Pen(_seriesSorted[k].Color);
